@@ -1,5 +1,6 @@
 // netlify/functions/auth-callback.js
 // Callback Discord OAuth - Crée/Update user + Session
+// ✅ VERSION CORRIGÉE : Gère la redirection vers la page d'origine
 
 const { neon } = require('@neondatabase/serverless');
 const crypto = require('crypto');
@@ -10,14 +11,27 @@ exports.handler = async (event, context) => {
   const REDIRECT_URI = `${process.env.SITE_URL}/api/auth/callback`;
   const DATABASE_URL = process.env.NETLIFY_DATABASE_URL;
   
-  // Récupérer le code OAuth
+  // Récupérer le code OAuth et le state
   const code = event.queryStringParameters?.code;
+  const state = event.queryStringParameters?.state;
   
   if (!code) {
     return {
       statusCode: 400,
       body: JSON.stringify({ error: 'Code OAuth manquant' })
     };
+  }
+  
+  // ✅ NOUVEAU : Décoder le state pour récupérer la page de retour
+  let returnTo = '/';
+  if (state) {
+    try {
+      const decoded = JSON.parse(Buffer.from(state, 'base64').toString());
+      returnTo = decoded.return_to || '/';
+    } catch (e) {
+      console.log('Erreur décodage state:', e);
+      returnTo = '/';
+    }
   }
   
   try {
@@ -94,6 +108,7 @@ exports.handler = async (event, context) => {
           discord_email,
           discord_global_name,
           can_access_dashboard,
+          is_super_admin,
           last_login
         ) VALUES (
           ${discordUser.id},
@@ -102,6 +117,7 @@ exports.handler = async (event, context) => {
           ${avatarUrl},
           ${discordUser.email || null},
           ${discordUser.global_name || discordUser.username},
+          false,
           false,
           CURRENT_TIMESTAMP
         )
@@ -199,7 +215,93 @@ exports.handler = async (event, context) => {
       };
     }
     
-    // 6. Créer une session pour l'utilisateur autorisé
+    // 6. Vérifier l'accès super admin si tentative d'accès à /admin.html
+    if (returnTo === '/admin.html' && !user.is_super_admin) {
+      return {
+        statusCode: 200,
+        headers: {
+          'Content-Type': 'text/html'
+        },
+        body: `
+          <!DOCTYPE html>
+          <html lang="fr">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Accès refusé - Admin Panel</title>
+            <style>
+              :root {
+                --discord-dark: #2b2d31;
+                --discord-darker: #1e1f22;
+                --text-primary: #f2f3f5;
+                --text-secondary: #b5bac1;
+                --danger: #ed4245;
+              }
+              * { margin: 0; padding: 0; box-sizing: border-box; }
+              body {
+                font-family: 'gg sans', 'Noto Sans', 'Helvetica Neue', Arial, sans-serif;
+                background: var(--discord-darker);
+                color: var(--text-primary);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                min-height: 100vh;
+              }
+              .container {
+                text-align: center;
+                max-width: 600px;
+                padding: 2rem;
+                background: var(--discord-dark);
+                border-radius: 8px;
+              }
+              h1 {
+                color: var(--danger);
+                font-size: 2rem;
+                margin-bottom: 1rem;
+              }
+              p {
+                color: var(--text-secondary);
+                font-size: 1.1rem;
+                line-height: 1.6;
+                margin-bottom: 1.5rem;
+              }
+              .info {
+                background: rgba(237, 66, 69, 0.1);
+                border: 1px solid var(--danger);
+                border-radius: 6px;
+                padding: 1rem;
+                margin-bottom: 1.5rem;
+              }
+              .btn {
+                display: inline-block;
+                padding: 0.75rem 1.5rem;
+                background: #5865f2;
+                color: white;
+                text-decoration: none;
+                border-radius: 6px;
+                margin-top: 1rem;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <h1>👑 Accès Super Admin requis</h1>
+              <p>Vous avez accès au dashboard, mais seuls les Super Administrateurs peuvent accéder au panel d'administration.</p>
+              <div class="info">
+                <strong>Votre compte:</strong><br>
+                ${discordUser.global_name || discordUser.username}<br>
+                Statut: Staff avec accès dashboard
+              </div>
+              <p>Contactez un Super Admin pour demander les droits d'administration.</p>
+              <a href="/" class="btn">← Retour au Dashboard</a>
+            </div>
+          </body>
+          </html>
+        `
+      };
+    }
+    
+    // 7. Créer une session pour l'utilisateur autorisé
     const sessionToken = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 jours
     const tokenExpiresAt = new Date(Date.now() + expires_in * 1000);
@@ -226,11 +328,11 @@ exports.handler = async (event, context) => {
       )
     `;
     
-    // 7. Rediriger vers le dashboard avec le cookie de session
+    // 8. ✅ NOUVEAU : Rediriger vers la page d'origine (state décodé)
     return {
       statusCode: 302,
       headers: {
-        Location: '/',
+        Location: returnTo,
         'Set-Cookie': `session=${sessionToken}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=604800`,
         'Cache-Control': 'no-cache'
       }
