@@ -1,5 +1,5 @@
 // public/js/auth-admin.js
-// ✅ Gestion de l'authentification pour la page ADMIN
+// ✅ Gestion de l'authentification pour la page ADMIN - VERSION CORRIGÉE
 // S'assure que l'utilisateur est super admin et gère la redirection OAuth
 
 let currentUser = null;
@@ -7,27 +7,32 @@ let currentUser = null;
 // Vérifier si l'utilisateur est connecté et s'il est super admin
 async function checkAdminAuth() {
   try {
+    console.log('🔐 Vérification authentification admin...');
     const response = await fetch('/api/auth/me', {
       credentials: 'include'
     });
     
     if (response.ok) {
       currentUser = await response.json();
+      console.log('✅ Utilisateur authentifié:', currentUser);
       
       // Vérifier que l'utilisateur est super admin
       if (!currentUser.is_super_admin) {
+        console.warn('⚠️ Utilisateur non super admin');
         showAccessDenied('Vous devez être Super Admin pour accéder à cette page.');
         return false;
       }
       
+      console.log('✅ Super admin vérifié');
       onAdminAuthSuccess(currentUser);
       return true;
     } else {
+      console.warn('⚠️ Non authentifié');
       onAdminAuthFail();
       return false;
     }
   } catch (error) {
-    console.error('Erreur vérification auth admin:', error);
+    console.error('❌ Erreur vérification auth admin:', error);
     onAdminAuthFail();
     return false;
   }
@@ -36,33 +41,49 @@ async function checkAdminAuth() {
 // Connexion avec Discord depuis la page admin
 function loginWithDiscordAdmin() {
   // ✅ IMPORTANT : Passer le paramètre return_to pour revenir sur admin.html
+  console.log('🔐 Redirection vers Discord OAuth...');
   window.location.href = '/api/auth/discord?return_to=/admin.html';
 }
 
 // Déconnexion
 function logout() {
-  if (confirm('Voulez-vous vraiment vous déconnexter ?')) {
+  if (confirm('Voulez-vous vraiment vous déconnecter ?')) {
+    console.log('🚪 Déconnexion...');
     window.location.href = '/api/auth/logout';
   }
 }
 
-// ✅ AMÉLIORATION : Succès de l'authentification admin
+// Succès de l'authentification admin
 function onAdminAuthSuccess(user) {
-  console.log('Admin connecté:', user);
+  console.log('✅ Admin connecté:', user);
   
-  // La page admin.html est déjà visible
-  // Déclencher le chargement des données si les fonctions sont disponibles
-  if (typeof loadRoles === 'function' && typeof loadUsers === 'function') {
-    setTimeout(() => {
-      loadRoles();
-      loadUsers();
-    }, 50);
+  // Mettre à jour l'interface si nécessaire
+  updateAdminUserInfo(user);
+}
+
+// Mettre à jour les infos utilisateur dans le header (si présent)
+function updateAdminUserInfo(user) {
+  const userNameElement = document.querySelector('.user-name');
+  const userRoleElement = document.querySelector('.user-role');
+  const userAvatarElement = document.querySelector('.user-avatar');
+  
+  if (userNameElement) {
+    userNameElement.textContent = user.discord_global_name || user.discord_username;
+  }
+  
+  if (userRoleElement) {
+    userRoleElement.textContent = '👑 Super Admin';
+  }
+  
+  if (userAvatarElement) {
+    userAvatarElement.src = user.discord_avatar_url || 'https://cdn.discordapp.com/embed/avatars/0.png';
+    userAvatarElement.alt = user.discord_username;
   }
 }
 
 // Échec de l'authentification
 function onAdminAuthFail() {
-  console.log('Non connecté ou non autorisé');
+  console.log('❌ Non connecté ou non autorisé');
   showAdminLoginScreen();
 }
 
@@ -223,5 +244,6 @@ function formatTimeAgo(dateString) {
 
 // Initialiser l'authentification admin au chargement de la page
 document.addEventListener('DOMContentLoaded', async () => {
+  console.log('🚀 Initialisation auth admin...');
   await checkAdminAuth();
 });
