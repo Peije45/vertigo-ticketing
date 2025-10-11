@@ -50,3 +50,7 @@
   to = "/.netlify/functions/admin-grant-access"
   status = 200
 
+[[redirects]]
+  from = "/api/sync-tickettool-v2"
+  to = "/.netlify/functions/sync-tickettool-v2"
+  status = 200
