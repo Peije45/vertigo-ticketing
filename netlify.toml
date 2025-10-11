@@ -75,7 +75,13 @@
   to = "/.netlify/functions/get-roles"
   status = 200
 
-# ✅ NOUVELLE ROUTE : Correction des catégories
+# ✅ NOUVELLE ROUTE : Liste des utilisateurs staff pour l'assignation
+[[redirects]]
+  from = "/api/get-staff-users"
+  to = "/.netlify/functions/get-staff-users"
+  status = 200
+
+# ✅ ROUTE : Correction des catégories
 [[redirects]]
   from = "/api/admin/fix-categories"
   to = "/.netlify/functions/admin-fix-categories"
