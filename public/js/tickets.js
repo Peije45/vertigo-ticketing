@@ -1,5 +1,5 @@
 // public/js/tickets.js
-// Gestion des tickets côté client
+// Gestion des tickets côté client - VERSION AVEC AUTO-REFRESH
 
 let allTickets = [];
 let currentFilters = {
@@ -10,9 +10,17 @@ let currentFilters = {
   search: null
 };
 
+// Variables pour l'auto-refresh
+let autoRefreshInterval = null;
+const AUTO_REFRESH_DELAY = 120000; // 2 minutes en millisecondes
+
 // Charger les tickets depuis l'API
-async function loadTickets() {
+async function loadTickets(silent = false) {
   try {
+    if (!silent) {
+      console.log('📥 Chargement des tickets...');
+    }
+    
     // Construire l'URL avec les filtres
     const params = new URLSearchParams();
     Object.keys(currentFilters).forEach(key => {
@@ -36,9 +44,15 @@ async function loadTickets() {
     displayTickets(allTickets);
     updateStats(data.stats);
     
+    if (!silent) {
+      console.log(`✅ ${allTickets.length} tickets chargés`);
+    }
+    
   } catch (error) {
     console.error('Erreur loadTickets:', error);
-    showError('Impossible de charger les tickets');
+    if (!silent) {
+      showError('Impossible de charger les tickets');
+    }
   }
 }
 
@@ -250,12 +264,16 @@ async function claimTicket(ticketId) {
   }
 }
 
-// Fermer le modal de détail
+// ✅ Fermer le modal de détail ET forcer un refresh
 function closeTicketDetail() {
   const modal = document.getElementById('ticketModal');
   if (modal) {
     modal.classList.remove('active');
   }
+  
+  // ✅ FORCER UN REFRESH après fermeture de la popup
+  console.log('🔄 Refresh après fermeture de la popup des messages');
+  loadTickets(false); // Refresh visible (non-silencieux)
 }
 
 // Mettre à jour les statistiques
@@ -368,4 +386,12 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
+  
+  // ✅ AUTO-REFRESH : Actualiser automatiquement toutes les 2 minutes (120000ms)
+  setInterval(() => {
+    console.log('🔄 Auto-refresh des tickets...');
+    loadTickets(true); // true = refresh silencieux
+  }, AUTO_REFRESH_DELAY);
+  
+  console.log(`✅ Auto-refresh activé : actualisation toutes les ${AUTO_REFRESH_DELAY / 1000} secondes`);
 });
