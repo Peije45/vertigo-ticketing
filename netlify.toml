@@ -2,11 +2,44 @@
   publish = "public"
   functions = "netlify/functions"
 
+# Redirections spécifiques pour l'authentification
 [[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/:splat"
+  from = "/api/auth/discord"
+  to = "/.netlify/functions/auth-discord"
+  status = 302
+
+[[redirects]]
+  from = "/api/auth/callback"
+  to = "/.netlify/functions/auth-callback"
   status = 200
 
+[[redirects]]
+  from = "/api/auth/logout"
+  to = "/.netlify/functions/auth-logout"
+  status = 302
+
+[[redirects]]
+  from = "/api/auth/me"
+  to = "/.netlify/functions/auth-me"
+  status = 200
+
+# Redirections pour les autres API
+[[redirects]]
+  from = "/api/get-tickets"
+  to = "/.netlify/functions/get-tickets"
+  status = 200
+
+[[redirects]]
+  from = "/api/get-ticket-details"
+  to = "/.netlify/functions/get-ticket-details"
+  status = 200
+
+[[redirects]]
+  from = "/api/claim-ticket"
+  to = "/.netlify/functions/claim-ticket"
+  status = 200
+
+# Redirection SPA - doit être en dernier
 [[redirects]]
   from = "/*"
   to = "/index.html"
