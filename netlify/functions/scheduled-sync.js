@@ -1,6 +1,6 @@
 // netlify/functions/scheduled-sync.js
 // Synchronisation automatique COMPLÈTE des tickets toutes les X minutes
-// ✅ VERSION MODIFIÉE : Priorité NULL par défaut (attribution manuelle)
+// ✅ INCLUT : Détection et clôture des tickets disparus de Discord
 
 const { neon } = require('@neondatabase/serverless');
 const { schedule } = require('@netlify/functions');
@@ -70,7 +70,7 @@ const syncTickets = async () => {
     `;
     
     const existingChannelIds = new Set(existingTickets.map(t => t.discord_channel_id));
-    console.log(`💾 ${existingTickets.length} tickets déjà en BDD`);
+    console.log(`💾 ${existingTickets.length} tickets actifs en BDD`);
     
     // ============================================
     // ÉTAPE 3 : Identifier les nouveaux tickets à créer
@@ -80,6 +80,7 @@ const syncTickets = async () => {
     
     let ticketsCreated = 0;
     let ticketsUpdated = 0;
+    let ticketsClosed = 0;
     let assignationsDetected = 0;
     let categoriesChanged = 0;
     let newMessagesCount = 0;
@@ -145,7 +146,7 @@ const syncTickets = async () => {
         // Déterminer le statut
         const status = assignedUserId ? 'en_cours' : 'nouveau';
         
-        // ✅ MODIFIÉ : Priorité NULL par défaut - à attribuer manuellement
+        // Priorité NULL par défaut - à attribuer manuellement
         const priority = null;
         
         // Date de création (à partir du snowflake Discord)
@@ -255,14 +256,79 @@ const syncTickets = async () => {
     }
     
     // ============================================
-    // ÉTAPE 5 : Synchroniser les tickets existants
+    // ÉTAPE 5 : Détecter et clôturer les tickets disparus de Discord
+    // ============================================
+    console.log(`🔍 Détection des tickets disparus de Discord...`);
+    
+    // Créer un Set des IDs de channels Discord actuellement présents
+    const currentDiscordChannelIds = new Set(ticketChannels.map(ch => ch.id));
+    
+    // Trouver les tickets en BDD qui n'existent plus sur Discord
+    const disappearedTickets = existingTickets.filter(ticket => 
+      !currentDiscordChannelIds.has(ticket.discord_channel_id)
+    );
+    
+    if (disappearedTickets.length > 0) {
+      console.log(`🚪 ${disappearedTickets.length} tickets ont disparu de Discord et seront clôturés`);
+      
+      for (const ticket of disappearedTickets) {
+        try {
+          console.log(`🔒 Clôture du ticket "${ticket.title}" (ID: ${ticket.id}) - Channel Discord ${ticket.discord_channel_id} introuvable`);
+          
+          // Marquer le ticket comme résolu/clôturé
+          await sql`
+            UPDATE tickets 
+            SET 
+              status = 'resolu',
+              closed_at = CURRENT_TIMESTAMP,
+              closed_by_user_id = NULL,
+              updated_at = CURRENT_TIMESTAMP
+            WHERE id = ${ticket.id}
+          `;
+          
+          // Logger la clôture automatique
+          await sql`
+            INSERT INTO ticket_activity_log (
+              ticket_id,
+              user_id,
+              action_type,
+              old_value,
+              new_value,
+              comment
+            ) VALUES (
+              ${ticket.id},
+              NULL,
+              'status_changed',
+              ${ticket.status},
+              'resolu',
+              'Ticket clôturé automatiquement : channel Discord supprimé ou déplacé'
+            )
+          `;
+          
+          ticketsClosed++;
+          
+        } catch (error) {
+          console.error(`❌ Erreur clôture ticket ${ticket.id}:`, error.message);
+        }
+      }
+    } else {
+      console.log(`✅ Aucun ticket disparu détecté`);
+    }
+    
+    // ============================================
+    // ÉTAPE 6 : Synchroniser les tickets existants (toujours présents)
     // ============================================
     console.log(`🔄 Synchronisation des tickets existants (changements de catégorie, assignations, messages)...`);
     
-    for (const ticket of existingTickets) {
+    // Filtrer pour ne synchroniser que les tickets toujours présents sur Discord
+    const activeTickets = existingTickets.filter(ticket => 
+      currentDiscordChannelIds.has(ticket.discord_channel_id)
+    );
+    
+    for (const ticket of activeTickets) {
       try {
         // ============================================
-        // 5.1 : Récupérer les infos actuelles du channel Discord
+        // 6.1 : Récupérer les infos actuelles du channel Discord
         // ============================================
         const channelResponse = await fetch(
           `https://discord.com/api/v10/channels/${ticket.discord_channel_id}`,
@@ -282,7 +348,7 @@ const syncTickets = async () => {
         const channel = await channelResponse.json();
         
         // ============================================
-        // 5.2 : Vérifier si la catégorie Discord a changé
+        // 6.2 : Vérifier si la catégorie Discord a changé
         // ============================================
         const currentCategoryDiscordId = channel.parent_id;
         const currentCategoryName = CATEGORY_MAPPINGS[currentCategoryDiscordId];
@@ -333,7 +399,7 @@ const syncTickets = async () => {
         }
         
         // ============================================
-        // 5.3 : Détecter si le ticket a été claimé/assigné
+        // 6.3 : Détecter si le ticket a été claimé/assigné
         // ============================================
         const ticketInfo = parseTicketName(channel.name);
         let currentAssignedUserId = null;
@@ -394,18 +460,10 @@ const syncTickets = async () => {
           } else {
             console.log(`⚠️ Staff "${ticketInfo.staffName}" non trouvé dans la BDD pour ticket ${ticket.discord_channel_id}`);
           }
-        } else {
-          // Si le nom ne contient plus de staff mais que le ticket est assigné en BDD
-          // Le ticket a peut-être été dé-assigné
-          if (ticket.assigned_to_user_id) {
-            console.log(`⚠️ Ticket "${ticket.title}" semble avoir été dé-assigné (pas de staff dans le nom)`);
-            // Note: On ne le dé-assigne pas automatiquement car ça peut être une erreur
-            // L'admin peut le faire manuellement si nécessaire
-          }
         }
         
         // ============================================
-        // 5.4 : Mettre à jour le titre si changé
+        // 6.4 : Mettre à jour le titre si changé
         // ============================================
         if (channel.name !== ticket.title) {
           await sql`
@@ -419,7 +477,7 @@ const syncTickets = async () => {
         }
         
         // ============================================
-        // 5.5 : Synchroniser les nouveaux messages
+        // 6.5 : Synchroniser les nouveaux messages
         // ============================================
         const lastMessages = await sql`
           SELECT discord_message_id, created_at
@@ -513,7 +571,7 @@ const syncTickets = async () => {
     }
     
     // ============================================
-    // ÉTAPE 6 : Résumé et retour
+    // ÉTAPE 7 : Résumé et retour
     // ============================================
     const summary = {
       success: true,
@@ -521,6 +579,7 @@ const syncTickets = async () => {
       tickets_in_database: existingTickets.length,
       new_tickets_created: ticketsCreated,
       existing_tickets_updated: ticketsUpdated,
+      tickets_closed_automatically: ticketsClosed,
       assignations_detected: assignationsDetected,
       categories_changed: categoriesChanged,
       new_messages_synced: newMessagesCount,
@@ -530,6 +589,7 @@ const syncTickets = async () => {
     console.log('✅ Synchronisation terminée:');
     console.log(`   - ${ticketsCreated} nouveaux tickets créés`);
     console.log(`   - ${ticketsUpdated} tickets existants mis à jour`);
+    console.log(`   - ${ticketsClosed} tickets clôturés automatiquement`);
     console.log(`   - ${assignationsDetected} assignations détectées`);
     console.log(`   - ${categoriesChanged} changements de catégorie détectés`);
     console.log(`   - ${newMessagesCount} nouveaux messages synchronisés`);
