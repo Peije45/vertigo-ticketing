@@ -41,17 +41,23 @@ function loginWithDiscordAdmin() {
 
 // Déconnexion
 function logout() {
-  if (confirm('Voulez-vous vraiment vous déconnecter ?')) {
+  if (confirm('Voulez-vous vraiment vous déconnexter ?')) {
     window.location.href = '/api/auth/logout';
   }
 }
 
-// Succès de l'authentification admin
+// ✅ AMÉLIORATION : Succès de l'authentification admin
 function onAdminAuthSuccess(user) {
   console.log('Admin connecté:', user);
   
-  // La page admin.html est déjà visible, pas besoin de la montrer
-  // Les scripts spécifiques à admin (admin.js) vont charger les données
+  // La page admin.html est déjà visible
+  // Déclencher le chargement des données si les fonctions sont disponibles
+  if (typeof loadRoles === 'function' && typeof loadUsers === 'function') {
+    setTimeout(() => {
+      loadRoles();
+      loadUsers();
+    }, 50);
+  }
 }
 
 // Échec de l'authentification
