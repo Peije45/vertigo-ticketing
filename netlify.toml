@@ -75,6 +75,12 @@
   to = "/.netlify/functions/get-roles"
   status = 200
 
+# ✅ NOUVELLE ROUTE : Correction des catégories
+[[redirects]]
+  from = "/api/admin/fix-categories"
+  to = "/.netlify/functions/admin-fix-categories"
+  status = 200
+
 # Redirection SPA - doit être en dernier
 [[redirects]]
   from = "/*"
