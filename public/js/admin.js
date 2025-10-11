@@ -6,24 +6,38 @@ let allRoles = [];
 
 // Charger les rôles disponibles
 async function loadRoles() {
+  console.log('🔄 Début chargement des rôles...');
   try {
     const response = await fetch('/api/get-roles', {
       credentials: 'include'
     });
     
+    console.log('📡 Réponse API get-roles:', response.status);
+    
     if (response.ok) {
       allRoles = await response.json();
+      console.log('✅ Rôles chargés:', allRoles);
       populateRolesCheckboxes();
+      console.log('✅ Checkboxes des rôles créées');
+    } else {
+      console.error('❌ Erreur API get-roles:', response.status, await response.text());
     }
   } catch (error) {
-    console.error('Erreur chargement rôles:', error);
+    console.error('❌ Erreur chargement rôles:', error);
   }
 }
 
 // Peupler les checkboxes de rôles
 function populateRolesCheckboxes() {
+  console.log('🔧 Début populateRolesCheckboxes avec', allRoles.length, 'rôles');
+  
   const addContainer = document.getElementById('rolesCheckboxes');
   const editContainer = document.getElementById('editRolesCheckboxes');
+  
+  console.log('📦 Containers trouvés:', {
+    addContainer: !!addContainer,
+    editContainer: !!editContainer
+  });
   
   const roleEmojis = {
     'fondateur': '👑',
@@ -40,8 +54,21 @@ function populateRolesCheckboxes() {
     </label>
   `).join('');
   
-  if (addContainer) addContainer.innerHTML = html;
-  if (editContainer) editContainer.innerHTML = html;
+  console.log('📝 HTML des checkboxes généré:', html.substring(0, 100) + '...');
+  
+  if (addContainer) {
+    addContainer.innerHTML = html;
+    console.log('✅ HTML inséré dans addContainer');
+  } else {
+    console.error('❌ addContainer introuvable');
+  }
+  
+  if (editContainer) {
+    editContainer.innerHTML = html;
+    console.log('✅ HTML inséré dans editContainer');
+  } else {
+    console.error('❌ editContainer introuvable');
+  }
 }
 
 // Charger tous les utilisateurs
