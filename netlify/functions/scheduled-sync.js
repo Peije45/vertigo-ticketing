@@ -1,6 +1,6 @@
 // netlify/functions/scheduled-sync.js
 // Synchronisation automatique COMPLÈTE des tickets toutes les X minutes
-// ✅ CORRIGÉ : Détecte et crée les NOUVEAUX tickets + synchronise les messages
+// ✅ VERSION AMÉLIORÉE : Détecte les assignations (claim) automatiquement
 
 const { neon } = require('@neondatabase/serverless');
 const { schedule } = require('@netlify/functions');
@@ -57,7 +57,13 @@ const syncTickets = async () => {
     // ÉTAPE 2 : Récupérer les tickets existants dans la BDD
     // ============================================
     const existingTickets = await sql`
-      SELECT discord_channel_id, id, unread_count
+      SELECT 
+        discord_channel_id, 
+        id, 
+        unread_count, 
+        assigned_to_user_id,
+        status,
+        title
       FROM tickets
       WHERE status != 'resolu'
     `;
@@ -73,6 +79,7 @@ const syncTickets = async () => {
     
     let ticketsCreated = 0;
     let ticketsUpdated = 0;
+    let assignationsDetected = 0;
     let newMessagesCount = 0;
     
     // ============================================
@@ -118,14 +125,18 @@ const syncTickets = async () => {
         let assignedUserId = null;
         if (ticketInfo.staffName) {
           const staffUsers = await sql`
-            SELECT id FROM users 
-            WHERE LOWER(discord_username) = LOWER(${ticketInfo.staffName})
-               OR LOWER(discord_global_name) = LOWER(${ticketInfo.staffName})
+            SELECT id, discord_username, discord_global_name FROM users 
+            WHERE (LOWER(discord_username) = LOWER(${ticketInfo.staffName})
+               OR LOWER(discord_global_name) = LOWER(${ticketInfo.staffName}))
+              AND can_access_dashboard = true
             LIMIT 1
           `;
           
           if (staffUsers.length > 0) {
             assignedUserId = staffUsers[0].id;
+            console.log(`👤 Nouveau ticket claimé détecté: ${channel.name} → ${staffUsers[0].discord_username}`);
+          } else {
+            console.log(`⚠️ Staff "${ticketInfo.staffName}" non trouvé dans la BDD`);
           }
         }
         
@@ -152,6 +163,7 @@ const syncTickets = async () => {
             created_by_avatar_url,
             assigned_to_user_id,
             assigned_at,
+            assigned_by_user_id,
             is_unread,
             unread_count,
             created_at,
@@ -168,6 +180,7 @@ const syncTickets = async () => {
             ${creator?.avatar ? `https://cdn.discordapp.com/avatars/${creator.id}/${creator.avatar}.png` : null},
             ${assignedUserId},
             ${assignedUserId ? new Date().toISOString() : null},
+            ${assignedUserId},
             true,
             ${messages.length},
             ${createdAt},
@@ -178,6 +191,26 @@ const syncTickets = async () => {
         
         const ticketId = ticketResult[0].id;
         ticketsCreated++;
+        
+        // Logger l'assignation si le ticket est créé déjà assigné
+        if (assignedUserId) {
+          await sql`
+            INSERT INTO ticket_activity_log (
+              ticket_id,
+              user_id,
+              action_type,
+              new_value,
+              comment
+            ) VALUES (
+              ${ticketId},
+              ${assignedUserId},
+              'assigned',
+              ${assignedUserId},
+              'Ticket créé déjà assigné (détecté via nom du channel)'
+            )
+          `;
+          assignationsDetected++;
+        }
         
         // Insérer les messages du nouveau ticket
         for (const msg of messages) {
@@ -220,13 +253,121 @@ const syncTickets = async () => {
     }
     
     // ============================================
-    // ÉTAPE 5 : Synchroniser les messages des tickets existants
+    // ÉTAPE 5 : Synchroniser les messages ET assignations des tickets existants
     // ============================================
-    console.log(`🔄 Synchronisation des messages pour ${existingTickets.length} tickets existants...`);
+    console.log(`🔄 Synchronisation des messages et assignations pour ${existingTickets.length} tickets existants...`);
     
     for (const ticket of existingTickets) {
       try {
-        // Récupérer le dernier message connu en BDD
+        // ============================================
+        // 5.1 : Récupérer les infos actuelles du channel Discord
+        // ============================================
+        const channelResponse = await fetch(
+          `https://discord.com/api/v10/channels/${ticket.discord_channel_id}`,
+          {
+            headers: {
+              'Authorization': `Bot ${DISCORD_BOT_TOKEN}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+        
+        if (!channelResponse.ok) {
+          console.log(`⚠️ Channel ${ticket.discord_channel_id} inaccessible (peut-être supprimé)`);
+          continue;
+        }
+        
+        const channel = await channelResponse.json();
+        
+        // ============================================
+        // 5.2 : Détecter si le ticket a été claimé/assigné
+        // ============================================
+        const ticketInfo = parseTicketName(channel.name);
+        let currentAssignedUserId = null;
+        
+        // Si un staff est détecté dans le nom
+        if (ticketInfo.staffName) {
+          // Chercher l'utilisateur dans la BDD
+          const staffUsers = await sql`
+            SELECT id, discord_username, discord_global_name 
+            FROM users 
+            WHERE (LOWER(discord_username) = LOWER(${ticketInfo.staffName})
+               OR LOWER(discord_global_name) = LOWER(${ticketInfo.staffName}))
+              AND can_access_dashboard = true
+            LIMIT 1
+          `;
+          
+          if (staffUsers.length > 0) {
+            currentAssignedUserId = staffUsers[0].id;
+            
+            // Vérifier si c'est une nouvelle assignation
+            if (currentAssignedUserId !== ticket.assigned_to_user_id) {
+              console.log(`👤 Assignation détectée: Ticket "${ticket.title}" → ${staffUsers[0].discord_username}`);
+              
+              // Mettre à jour l'assignation dans la BDD
+              await sql`
+                UPDATE tickets 
+                SET 
+                  assigned_to_user_id = ${currentAssignedUserId},
+                  assigned_at = CURRENT_TIMESTAMP,
+                  assigned_by_user_id = ${currentAssignedUserId},
+                  status = CASE 
+                    WHEN status = 'nouveau' THEN 'en_cours'
+                    ELSE status
+                  END,
+                  updated_at = CURRENT_TIMESTAMP
+                WHERE id = ${ticket.id}
+              `;
+              
+              // Logger l'assignation
+              await sql`
+                INSERT INTO ticket_activity_log (
+                  ticket_id,
+                  user_id,
+                  action_type,
+                  new_value,
+                  comment
+                ) VALUES (
+                  ${ticket.id},
+                  ${currentAssignedUserId},
+                  'assigned',
+                  ${currentAssignedUserId},
+                  'Assignation détectée via sync automatique (changement nom channel)'
+                )
+              `;
+              
+              assignationsDetected++;
+            }
+          } else {
+            console.log(`⚠️ Staff "${ticketInfo.staffName}" non trouvé dans la BDD pour ticket ${ticket.discord_channel_id}`);
+          }
+        } else {
+          // Si le nom ne contient plus de staff mais que le ticket est assigné en BDD
+          // Le ticket a peut-être été dé-assigné
+          if (ticket.assigned_to_user_id) {
+            console.log(`⚠️ Ticket "${ticket.title}" semble avoir été dé-assigné (pas de staff dans le nom)`);
+            // Note: On ne le dé-assigne pas automatiquement car ça peut être une erreur
+            // L'admin peut le faire manuellement si nécessaire
+          }
+        }
+        
+        // ============================================
+        // 5.3 : Mettre à jour le titre si changé
+        // ============================================
+        if (channel.name !== ticket.title) {
+          await sql`
+            UPDATE tickets 
+            SET 
+              title = ${channel.name},
+              updated_at = CURRENT_TIMESTAMP
+            WHERE id = ${ticket.id}
+          `;
+          console.log(`📝 Titre mis à jour: "${ticket.title}" → "${channel.name}"`);
+        }
+        
+        // ============================================
+        // 5.4 : Synchroniser les nouveaux messages
+        // ============================================
         const lastMessages = await sql`
           SELECT discord_message_id, created_at
           FROM ticket_messages
@@ -250,7 +391,7 @@ const syncTickets = async () => {
         });
         
         if (!messagesResponse.ok) {
-          console.log(`⚠️ Channel ${ticket.discord_channel_id} inaccessible (peut-être supprimé)`);
+          console.log(`⚠️ Impossible de récupérer les messages du channel ${ticket.discord_channel_id}`);
           continue;
         }
         
@@ -263,8 +404,8 @@ const syncTickets = async () => {
           m.content.length > 0
         );
         
-        if (newMessages.length === 0) {
-          continue; // Pas de nouveaux messages
+        if (newMessages.length === 0 && !currentAssignedUserId) {
+          continue; // Pas de changements
         }
         
         // Insérer les nouveaux messages
@@ -298,7 +439,7 @@ const syncTickets = async () => {
           }
         }
         
-        // Mettre à jour le ticket
+        // Mettre à jour le ticket si nouveaux messages
         if (newMessages.length > 0) {
           await sql`
             UPDATE tickets 
@@ -327,6 +468,7 @@ const syncTickets = async () => {
       tickets_in_database: existingTickets.length,
       new_tickets_created: ticketsCreated,
       existing_tickets_updated: ticketsUpdated,
+      assignations_detected: assignationsDetected,
       new_messages_synced: newMessagesCount,
       timestamp: new Date().toISOString()
     };
@@ -334,6 +476,7 @@ const syncTickets = async () => {
     console.log('✅ Synchronisation terminée:');
     console.log(`   - ${ticketsCreated} nouveaux tickets créés`);
     console.log(`   - ${ticketsUpdated} tickets existants mis à jour`);
+    console.log(`   - ${assignationsDetected} assignations détectées`);
     console.log(`   - ${newMessagesCount} nouveaux messages synchronisés`);
     
     return summary;
@@ -348,7 +491,15 @@ const syncTickets = async () => {
 // FONCTION UTILITAIRE : Parser le nom du ticket
 // ============================================
 function parseTicketName(name) {
-  const parts = name.split('-');
+  // Formats attendus:
+  // - "001-username" (pas claimé)
+  // - "001-staffname-username" (claimé)
+  // - Parfois avec emojis ou caractères spéciaux
+  
+  // Nettoyer le nom (enlever les emojis courants)
+  const cleanName = name.replace(/[🔴🟠🟢⚠️❓]/g, '').trim();
+  
+  const parts = cleanName.split('-');
   
   if (parts.length === 2) {
     // Format: "001-username" (pas claimé)
@@ -366,9 +517,10 @@ function parseTicketName(name) {
     };
   }
   
+  // Format non reconnu, retourner le nom complet comme username
   return {
     number: null,
-    username: name,
+    username: cleanName,
     staffName: null
   };
 }
@@ -385,9 +537,3 @@ exports.handler = schedule('*/2 * * * *', syncTickets);
 //       └─ Jour du mois (* = tous les jours)
 //          └─ Mois (* = tous les mois)
 //             └─ Jour de la semaine (* = tous les jours)
-//
-// Exemples d'autres fréquences :
-// - "*/5 * * * *"  → Toutes les 5 minutes
-// - "0 * * * *"    → Toutes les heures (à la minute 0)
-// - "0 */2 * * *"  → Toutes les 2 heures
-// - "*/1 * * * *"  → Toutes les minutes (attention à la limite de 125k invocations/mois)
