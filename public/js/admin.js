@@ -329,14 +329,47 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+function formatTimeAgo(dateString) {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now - date;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+  
+  if (diffMins < 1) return 'À l\'instant';
+  if (diffMins < 60) return `Il y a ${diffMins} min`;
+  if (diffHours < 24) return `Il y a ${diffHours}h`;
+  if (diffDays === 1) return 'Hier';
+  if (diffDays < 7) return `Il y a ${diffDays}j`;
+  
+  return date.toLocaleDateString('fr-FR', { 
+    day: '2-digit', 
+    month: '2-digit', 
+    year: 'numeric' 
+  });
+}
+
 function showError(message) {
   alert(`❌ ${message}`);
 }
 
+// ============================================
+// ✅ CORRECTION : Initialisation fixée
+// ============================================
 // Initialisation
 document.addEventListener('DOMContentLoaded', async () => {
-  // Vérifier l'authentification
-  await checkAuth();
+  // Attendre que l'authentification soit vérifiée par auth-admin.js
+  // (auth-admin.js définit currentUser et gère la redirection si non autorisé)
+  
+  // Petit délai pour s'assurer que auth-admin.js a fini son travail
+  await new Promise(resolve => setTimeout(resolve, 100));
+  
+  // Vérifier que l'utilisateur est bien connecté avant de charger les données
+  if (!currentUser) {
+    console.log('En attente de l\'authentification...');
+    return;
+  }
   
   // Charger les rôles et utilisateurs
   await loadRoles();
