@@ -1,43 +1,45 @@
 // public/js/admin.js
-// Gestion de la page d'administration
+// Gestion de la page d'administration - VERSION CORRIGÉE
 
 let allUsers = [];
 let allRoles = [];
+let isRolesLoaded = false;
 
 // Charger les rôles disponibles
 async function loadRoles() {
-  console.log('🔄 Début chargement des rôles...');
   try {
+    console.log('🔄 Chargement des rôles...');
     const response = await fetch('/api/get-roles', {
       credentials: 'include'
     });
     
-    console.log('📡 Réponse API get-roles:', response.status);
-    
     if (response.ok) {
       allRoles = await response.json();
       console.log('✅ Rôles chargés:', allRoles);
+      isRolesLoaded = true;
       populateRolesCheckboxes();
-      console.log('✅ Checkboxes des rôles créées');
+      return true;
     } else {
-      console.error('❌ Erreur API get-roles:', response.status, await response.text());
+      console.error('❌ Erreur HTTP:', response.status);
+      showError('Impossible de charger les rôles');
+      return false;
     }
   } catch (error) {
     console.error('❌ Erreur chargement rôles:', error);
+    showError('Erreur lors du chargement des rôles');
+    return false;
   }
 }
 
 // Peupler les checkboxes de rôles
 function populateRolesCheckboxes() {
-  console.log('🔧 Début populateRolesCheckboxes avec', allRoles.length, 'rôles');
-  
   const addContainer = document.getElementById('rolesCheckboxes');
   const editContainer = document.getElementById('editRolesCheckboxes');
   
-  console.log('📦 Containers trouvés:', {
-    addContainer: !!addContainer,
-    editContainer: !!editContainer
-  });
+  if (!addContainer && !editContainer) {
+    console.warn('⚠️ Containers de rôles non trouvés');
+    return;
+  }
   
   const roleEmojis = {
     'fondateur': '👑',
@@ -47,33 +49,34 @@ function populateRolesCheckboxes() {
     'support': '🎯'
   };
   
+  if (!allRoles || allRoles.length === 0) {
+    const emptyHtml = '<p style="color: var(--text-muted); padding: 1rem;">Aucun rôle disponible</p>';
+    if (addContainer) addContainer.innerHTML = emptyHtml;
+    if (editContainer) editContainer.innerHTML = emptyHtml;
+    return;
+  }
+  
   const html = allRoles.map(role => `
     <label class="checkbox-group">
-      <input type="checkbox" value="${role.id}" class="role-checkbox">
+      <input type="checkbox" value="${role.id}" class="role-checkbox" data-role-name="${role.name}">
       <span>${roleEmojis[role.name] || '👤'} ${role.name.charAt(0).toUpperCase() + role.name.slice(1)}</span>
     </label>
   `).join('');
   
-  console.log('📝 HTML des checkboxes généré:', html.substring(0, 100) + '...');
-  
   if (addContainer) {
     addContainer.innerHTML = html;
-    console.log('✅ HTML inséré dans addContainer');
-  } else {
-    console.error('❌ addContainer introuvable');
+    console.log(`✅ ${allRoles.length} rôles ajoutés au modal d'ajout`);
   }
-  
   if (editContainer) {
     editContainer.innerHTML = html;
-    console.log('✅ HTML inséré dans editContainer');
-  } else {
-    console.error('❌ editContainer introuvable');
+    console.log(`✅ ${allRoles.length} rôles ajoutés au modal d'édition`);
   }
 }
 
 // Charger tous les utilisateurs
 async function loadUsers() {
   try {
+    console.log('🔄 Chargement des utilisateurs...');
     const response = await fetch('/api/admin/list-users', {
       credentials: 'include'
     });
@@ -89,6 +92,7 @@ async function loadUsers() {
     
     const data = await response.json();
     allUsers = data.users;
+    console.log(`✅ ${allUsers.length} utilisateurs chargés`);
     
     // Mettre à jour les stats
     updateStats(data.stats);
@@ -97,7 +101,7 @@ async function loadUsers() {
     displayUsers(allUsers);
     
   } catch (error) {
-    console.error('Erreur loadUsers:', error);
+    console.error('❌ Erreur loadUsers:', error);
     showError('Impossible de charger les utilisateurs');
   }
 }
@@ -111,11 +115,17 @@ function updateStats(stats) {
     statCards[2].textContent = stats.super_admins || 0;
     statCards[3].textContent = stats.active_last_7d || 0;
   }
+  console.log('📊 Stats mises à jour:', stats);
 }
 
 // Afficher les utilisateurs dans le tableau
 function displayUsers(users) {
   const tbody = document.getElementById('usersTableBody');
+  
+  if (!tbody) {
+    console.error('❌ Table body non trouvé');
+    return;
+  }
   
   if (users.length === 0) {
     tbody.innerHTML = `
@@ -129,6 +139,7 @@ function displayUsers(users) {
   }
   
   tbody.innerHTML = users.map(user => createUserRow(user)).join('');
+  console.log(`✅ ${users.length} utilisateurs affichés`);
 }
 
 // Créer une ligne de tableau pour un utilisateur
@@ -145,8 +156,21 @@ function createUserRow(user) {
     ? '<span class="badge badge-super">👑 SUPER ADMIN</span>'
     : '';
   
-  const rolesHtml = user.roles && user.roles.length > 0
-    ? user.roles.map(role => {
+  // 🔥 CORRECTION : Parser les rôles correctement
+  let userRoles = [];
+  try {
+    if (typeof user.roles === 'string') {
+      userRoles = JSON.parse(user.roles);
+    } else if (Array.isArray(user.roles)) {
+      userRoles = user.roles;
+    }
+  } catch (e) {
+    console.error('Erreur parsing rôles pour user', user.id, e);
+    userRoles = [];
+  }
+  
+  const rolesHtml = userRoles && userRoles.length > 0
+    ? userRoles.map(role => {
         const emoji = {
           'fondateur': '👑',
           'dev': '💻',
@@ -161,6 +185,9 @@ function createUserRow(user) {
   const lastLogin = user.last_login 
     ? formatTimeAgo(user.last_login)
     : 'Jamais connecté';
+  
+  // Échapper le JSON pour éviter les problèmes avec les guillemets
+  const userDataEscaped = escapeHtml(JSON.stringify(user));
   
   return `
     <tr>
@@ -184,7 +211,7 @@ function createUserRow(user) {
       <td style="font-size: 0.85rem; color: var(--text-secondary);">${lastLogin}</td>
       <td>
         <div class="actions-cell">
-          <button class="btn btn-sm" onclick='editUser(${JSON.stringify(user)})'>
+          <button class="btn btn-sm" onclick='editUser(${userDataEscaped})'>
             ✏️ Modifier
           </button>
         </div>
@@ -195,11 +222,24 @@ function createUserRow(user) {
 
 // Ouvrir le modal d'ajout d'utilisateur
 function openAddUserModal() {
+  // S'assurer que les rôles sont chargés
+  if (!isRolesLoaded) {
+    console.warn('⚠️ Rôles pas encore chargés, rechargement...');
+    loadRoles().then(() => {
+      openAddUserModal();
+    });
+    return;
+  }
+  
   document.getElementById('addUserModal').classList.add('active');
   document.getElementById('discordIdInput').value = '';
   document.getElementById('canAccessCheckbox').checked = false;
+  
+  // Décocher toutes les checkboxes
   document.querySelectorAll('#rolesCheckboxes .role-checkbox').forEach(cb => cb.checked = false);
   document.getElementById('addUserAlert').innerHTML = '';
+  
+  console.log('✅ Modal d\'ajout ouvert');
 }
 
 // Fermer le modal d'ajout
@@ -213,6 +253,8 @@ async function addUser() {
   const canAccess = document.getElementById('canAccessCheckbox').checked;
   const roleIds = Array.from(document.querySelectorAll('#rolesCheckboxes .role-checkbox:checked'))
     .map(cb => parseInt(cb.value));
+  
+  console.log('➕ Ajout utilisateur:', { discordId, canAccess, roleIds });
   
   if (!discordId) {
     showAlert('addUserAlert', 'Veuillez entrer un Discord ID', 'error');
@@ -242,10 +284,12 @@ async function addUser() {
     const data = await response.json();
     
     if (!response.ok) {
+      console.error('❌ Erreur ajout:', data);
       showAlert('addUserAlert', data.error || 'Erreur lors de l\'ajout', 'error');
       return;
     }
     
+    console.log('✅ Utilisateur ajouté:', data.user);
     showAlert('addUserAlert', '✅ Utilisateur ajouté avec succès !', 'success');
     
     // Recharger la liste après 1 seconde
@@ -255,13 +299,24 @@ async function addUser() {
     }, 1000);
     
   } catch (error) {
-    console.error('Erreur addUser:', error);
+    console.error('❌ Erreur addUser:', error);
     showAlert('addUserAlert', 'Erreur serveur', 'error');
   }
 }
 
 // Ouvrir le modal de modification
 function editUser(user) {
+  // S'assurer que les rôles sont chargés
+  if (!isRolesLoaded) {
+    console.warn('⚠️ Rôles pas encore chargés, rechargement...');
+    loadRoles().then(() => {
+      editUser(user);
+    });
+    return;
+  }
+  
+  console.log('✏️ Édition utilisateur:', user);
+  
   document.getElementById('editUserModal').classList.add('active');
   document.getElementById('editUserId').value = user.id;
   
@@ -280,11 +335,40 @@ function editUser(user) {
   document.getElementById('editCanAccessCheckbox').checked = user.can_access_dashboard;
   document.getElementById('editIsActiveCheckbox').checked = user.is_active;
   
-  // Cocher les rôles
+  // 🔥 CORRECTION : Parser et cocher les rôles correctement
+  let userRoles = [];
+  try {
+    if (typeof user.roles === 'string') {
+      userRoles = JSON.parse(user.roles);
+    } else if (Array.isArray(user.roles)) {
+      userRoles = user.roles;
+    }
+  } catch (e) {
+    console.error('Erreur parsing rôles:', e);
+    userRoles = [];
+  }
+  
+  console.log('Rôles utilisateur:', userRoles);
+  console.log('Rôles disponibles:', allRoles);
+  
+  // Décocher toutes les checkboxes d'abord
   document.querySelectorAll('#editRolesCheckboxes .role-checkbox').forEach(cb => {
-    const roleId = parseInt(cb.value);
-    cb.checked = user.roles && user.roles.some(r => r.role_id === roleId);
+    cb.checked = false;
   });
+  
+  // Cocher les rôles que l'utilisateur possède
+  if (userRoles && userRoles.length > 0) {
+    userRoles.forEach(userRole => {
+      const roleId = userRole.role_id;
+      const checkbox = document.querySelector(`#editRolesCheckboxes .role-checkbox[value="${roleId}"]`);
+      if (checkbox) {
+        checkbox.checked = true;
+        console.log(`✅ Rôle ${userRole.role_name} (ID: ${roleId}) coché`);
+      } else {
+        console.warn(`⚠️ Checkbox pour rôle ID ${roleId} non trouvée`);
+      }
+    });
+  }
   
   document.getElementById('editUserAlert').innerHTML = '';
 }
@@ -301,6 +385,8 @@ async function saveUser() {
   const isActive = document.getElementById('editIsActiveCheckbox').checked;
   const roleIds = Array.from(document.querySelectorAll('#editRolesCheckboxes .role-checkbox:checked'))
     .map(cb => parseInt(cb.value));
+  
+  console.log('💾 Sauvegarde utilisateur:', { userId, canAccess, isActive, roleIds });
   
   try {
     const response = await fetch('/api/admin/update-user', {
@@ -320,10 +406,12 @@ async function saveUser() {
     const data = await response.json();
     
     if (!response.ok) {
+      console.error('❌ Erreur modification:', data);
       showAlert('editUserAlert', data.error || 'Erreur lors de la modification', 'error');
       return;
     }
     
+    console.log('✅ Utilisateur modifié:', data.user);
     showAlert('editUserAlert', '✅ Utilisateur modifié avec succès !', 'success');
     
     // Recharger la liste après 1 seconde
@@ -333,7 +421,7 @@ async function saveUser() {
     }, 1000);
     
   } catch (error) {
-    console.error('Erreur saveUser:', error);
+    console.error('❌ Erreur saveUser:', error);
     showAlert('editUserAlert', 'Erreur serveur', 'error');
   }
 }
@@ -351,9 +439,14 @@ function showAlert(containerId, message, type) {
 
 // Utilitaires
 function escapeHtml(text) {
+  if (!text) return '';
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
+}
+
+function showError(message) {
+  alert(`❌ ${message}`);
 }
 
 function formatTimeAgo(dateString) {
@@ -377,28 +470,20 @@ function formatTimeAgo(dateString) {
   });
 }
 
-function showError(message) {
-  alert(`❌ ${message}`);
-}
-
-// ============================================
-// ✅ CORRECTION : Initialisation fixée
-// ============================================
 // Initialisation
 document.addEventListener('DOMContentLoaded', async () => {
-  // Attendre que l'authentification soit vérifiée par auth-admin.js
-  // (auth-admin.js définit currentUser et gère la redirection si non autorisé)
+  console.log('🚀 Initialisation page admin...');
   
-  // Petit délai pour s'assurer que auth-admin.js a fini son travail
-  await new Promise(resolve => setTimeout(resolve, 100));
+  // Vérifier l'authentification
+  // await checkAuth(); // Géré par auth-admin.js
   
-  // Vérifier que l'utilisateur est bien connecté avant de charger les données
-  if (!currentUser) {
-    console.log('En attente de l\'authentification...');
-    return;
+  // Charger les rôles et utilisateurs en parallèle
+  const rolesLoaded = await loadRoles();
+  
+  if (rolesLoaded) {
+    await loadUsers();
+    console.log('✅ Page admin chargée avec succès');
+  } else {
+    console.error('❌ Impossible de charger les rôles');
   }
-  
-  // Charger les rôles et utilisateurs
-  await loadRoles();
-  await loadUsers();
 });
