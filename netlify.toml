@@ -44,3 +44,8 @@
   from = "/*"
   to = "/index.html"
   status = 200
+
+  [[redirects]]
+  from = "/api/admin/grant-access"
+  to = "/.netlify/functions/admin-grant-access"
+  status = 200
