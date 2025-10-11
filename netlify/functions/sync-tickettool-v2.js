@@ -1,9 +1,26 @@
 // netlify/functions/sync-tickettool-v2.js
-// Synchroniser les tickets par catégories Discord
+// Synchroniser les tickets par catégories Discord - VERSION AVEC CORS
 
 const { neon } = require('@neondatabase/serverless');
 
 exports.handler = async (event, context) => {
+  // ✅ Headers CORS pour permettre les appels externes
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Content-Type': 'application/json'
+  };
+  
+  // Répondre aux preflight requests
+  if (event.httpMethod === 'OPTIONS') {
+    return {
+      statusCode: 200,
+      headers,
+      body: ''
+    };
+  }
+  
   const DATABASE_URL = process.env.NETLIFY_DATABASE_URL;
   const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN;
   const ADMIN_SECRET = process.env.ADMIN_SECRET;
@@ -11,6 +28,7 @@ exports.handler = async (event, context) => {
   if (event.httpMethod !== 'POST') {
     return {
       statusCode: 405,
+      headers,
       body: JSON.stringify({ error: 'Méthode non autorisée' })
     };
   }
@@ -21,6 +39,7 @@ exports.handler = async (event, context) => {
     if (body.admin_secret !== ADMIN_SECRET) {
       return {
         statusCode: 403,
+        headers,
         body: JSON.stringify({ error: 'Secret invalide' })
       };
     }
@@ -33,6 +52,7 @@ exports.handler = async (event, context) => {
     if (!category_mappings || Object.keys(category_mappings).length === 0) {
       return {
         statusCode: 400,
+        headers,
         body: JSON.stringify({ 
           error: 'category_mappings requis',
           example: {
@@ -58,7 +78,17 @@ exports.handler = async (event, context) => {
     );
     
     if (!channelsResponse.ok) {
-      throw new Error('Erreur récupération channels: ' + channelsResponse.statusText);
+      const errorText = await channelsResponse.text();
+      console.error('Erreur Discord API:', channelsResponse.status, errorText);
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({ 
+          error: 'Erreur récupération channels Discord',
+          status: channelsResponse.status,
+          details: errorText
+        })
+      };
     }
     
     const allChannels = await channelsResponse.json();
@@ -239,7 +269,7 @@ exports.handler = async (event, context) => {
     
     return {
       statusCode: 200,
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({
         message: 'Synchronisation terminée',
         total_tickets: ticketChannels.length,
@@ -253,9 +283,11 @@ exports.handler = async (event, context) => {
     console.error('Erreur sync:', error);
     return {
       statusCode: 500,
+      headers,
       body: JSON.stringify({ 
         error: 'Erreur serveur',
-        details: error.message 
+        details: error.message,
+        stack: error.stack
       })
     };
   }
