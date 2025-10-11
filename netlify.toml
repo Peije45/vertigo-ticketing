@@ -54,6 +54,27 @@
   to = "/.netlify/functions/webhook-discord"
   status = 200
 
+# Routes d'administration (super admin uniquement)
+[[redirects]]
+  from = "/api/admin/list-users"
+  to = "/.netlify/functions/admin-list-users"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/add-user-by-id"
+  to = "/.netlify/functions/admin-add-user-by-id"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/update-user"
+  to = "/.netlify/functions/admin-update-user"
+  status = 200
+
+[[redirects]]
+  from = "/api/get-roles"
+  to = "/.netlify/functions/get-roles"
+  status = 200
+
 # Redirection SPA - doit être en dernier
 [[redirects]]
   from = "/*"
