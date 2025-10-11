@@ -1,5 +1,5 @@
 // public/js/tickets.js
-// Gestion des tickets côté client - VERSION AVEC AUTO-REFRESH ET ASSIGNATION FLEXIBLE
+// Gestion des tickets côté client - VERSION AVEC AUTO-REFRESH, ASSIGNATION FLEXIBLE ET GESTION DES PRIORITÉS
 
 let allTickets = [];
 let allStaffUsers = [];
@@ -139,7 +139,7 @@ function createTicketCard(ticket) {
       <div class="ticket-meta">
         <div class="ticket-meta-item">
           ${priorityIndicator}
-          Priorité ${ticket.priority}
+          Priorité ${ticket.priority || 'non définie'}
         </div>
         <div class="ticket-meta-item">
           <img src="${ticket.created_by_avatar_url || 'https://cdn.discordapp.com/embed/avatars/0.png'}" alt="User">
@@ -172,7 +172,7 @@ function getPriorityIndicator(priority) {
     'moyenne': '<span class="priority-indicator priority-medium"></span>',
     'basse': '<span class="priority-indicator priority-low"></span>'
   };
-  return indicators[priority] || indicators['moyenne'];
+  return indicators[priority] || '<span class="priority-indicator" style="background: var(--text-muted);"></span>';
 }
 
 // Ouvrir le détail d'un ticket
@@ -223,6 +223,9 @@ function displayTicketModal(ticket, messages) {
       </div>
     `).join('');
   }
+  
+  // ✅ AJOUT : Ajouter le dropdown de priorité
+  addPriorityDropdown(ticket);
   
   // Ajouter le bouton d'assignation si le ticket n'est pas assigné
   addClaimButton(ticket);
@@ -433,6 +436,138 @@ async function claimTicket(ticketId, userId) {
   } catch (error) {
     console.error('Erreur claimTicket:', error);
     showError('Impossible d\'assigner le ticket');
+  }
+}
+
+// ✅ NOUVEAU : Mettre à jour la priorité d'un ticket
+async function updateTicketPriority(ticketId, newPriority) {
+  try {
+    console.log(`🎯 Mise à jour priorité du ticket ${ticketId} → ${newPriority || 'aucune'}`);
+    
+    const response = await fetch('/api/update-ticket-priority', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ 
+        ticket_id: ticketId,
+        priority: newPriority
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error('Erreur lors de la mise à jour de la priorité');
+    }
+    
+    const data = await response.json();
+    
+    // Afficher un message de succès
+    showSuccess(data.message || 'Priorité mise à jour avec succès !');
+    
+    // Recharger les tickets pour mettre à jour l'affichage
+    await loadTickets(true); // Refresh silencieux
+    
+  } catch (error) {
+    console.error('Erreur updateTicketPriority:', error);
+    showError('Impossible de mettre à jour la priorité');
+  }
+}
+
+// ✅ NOUVEAU : Ajouter un dropdown de sélection de priorité au modal
+function addPriorityDropdown(ticket) {
+  const modalHeader = document.querySelector('.modal-header');
+  if (!modalHeader) return;
+  
+  // Supprimer l'ancien conteneur de priorité s'il existe
+  const existingContainer = modalHeader.querySelector('.priority-container');
+  if (existingContainer) existingContainer.remove();
+  
+  // Créer le conteneur de priorité
+  const priorityContainer = document.createElement('div');
+  priorityContainer.className = 'priority-container';
+  priorityContainer.style.cssText = 'display: flex; align-items: center; gap: 0.75rem; margin-left: 1rem;';
+  
+  // Label
+  const label = document.createElement('span');
+  label.textContent = 'Priorité:';
+  label.style.cssText = 'color: var(--text-secondary); font-size: 0.9rem; font-weight: 500;';
+  
+  // Dropdown
+  const select = document.createElement('select');
+  select.className = 'priority-select';
+  select.style.cssText = `
+    padding: 0.5rem 0.75rem;
+    background: var(--discord-light);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    cursor: pointer;
+    min-width: 140px;
+  `;
+  
+  // Options du dropdown
+  const priorities = [
+    { value: '', label: '⚪ Non définie', color: 'var(--text-muted)' },
+    { value: 'haute', label: '🔴 Haute', color: 'var(--danger)' },
+    { value: 'moyenne', label: '🟡 Moyenne', color: 'var(--warning)' },
+    { value: 'basse', label: '🟢 Basse', color: 'var(--success)' }
+  ];
+  
+  priorities.forEach(p => {
+    const option = document.createElement('option');
+    option.value = p.value;
+    option.textContent = p.label;
+    option.style.color = p.color;
+    if (p.value === (ticket.priority || '')) {
+      option.selected = true;
+    }
+    select.appendChild(option);
+  });
+  
+  // Gérer le changement de priorité
+  select.addEventListener('change', async (e) => {
+    const newPriority = e.target.value || null;
+    
+    // Confirmation si changement vers "Non définie"
+    if (newPriority === null && ticket.priority) {
+      if (!confirm('Voulez-vous vraiment retirer la priorité de ce ticket ?')) {
+        e.target.value = ticket.priority || '';
+        return;
+      }
+    }
+    
+    // Désactiver le select pendant la mise à jour
+    select.disabled = true;
+    select.style.opacity = '0.6';
+    
+    try {
+      await updateTicketPriority(ticket.id, newPriority);
+      // Mettre à jour l'objet ticket local
+      ticket.priority = newPriority;
+    } catch (error) {
+      // Restaurer l'ancienne valeur en cas d'erreur
+      e.target.value = ticket.priority || '';
+    } finally {
+      select.disabled = false;
+      select.style.opacity = '1';
+    }
+  });
+  
+  priorityContainer.appendChild(label);
+  priorityContainer.appendChild(select);
+  
+  // Insérer avant le bouton de fermeture ou après le conteneur d'assignation
+  const closeBtn = modalHeader.querySelector('.close-btn');
+  const assignContainer = modalHeader.querySelector('.assign-container');
+  
+  if (assignContainer) {
+    modalHeader.insertBefore(priorityContainer, assignContainer);
+  } else if (closeBtn) {
+    modalHeader.insertBefore(priorityContainer, closeBtn);
+  } else {
+    modalHeader.appendChild(priorityContainer);
   }
 }
 
