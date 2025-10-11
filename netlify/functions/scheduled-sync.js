@@ -1,6 +1,6 @@
 // netlify/functions/scheduled-sync.js
 // Synchronisation automatique COMPLÈTE des tickets toutes les X minutes
-// ✅ VERSION AMÉLIORÉE : Détecte les assignations (claim) automatiquement
+// ✅ VERSION AMÉLIORÉE : Détecte les assignations ET les changements de catégorie
 
 const { neon } = require('@neondatabase/serverless');
 const { schedule } = require('@netlify/functions');
@@ -63,7 +63,8 @@ const syncTickets = async () => {
         unread_count, 
         assigned_to_user_id,
         status,
-        title
+        title,
+        category_id
       FROM tickets
       WHERE status != 'resolu'
     `;
@@ -80,6 +81,7 @@ const syncTickets = async () => {
     let ticketsCreated = 0;
     let ticketsUpdated = 0;
     let assignationsDetected = 0;
+    let categoriesChanged = 0;
     let newMessagesCount = 0;
     
     // ============================================
@@ -253,9 +255,9 @@ const syncTickets = async () => {
     }
     
     // ============================================
-    // ÉTAPE 5 : Synchroniser les messages ET assignations des tickets existants
+    // ÉTAPE 5 : Synchroniser les tickets existants
     // ============================================
-    console.log(`🔄 Synchronisation des messages et assignations pour ${existingTickets.length} tickets existants...`);
+    console.log(`🔄 Synchronisation des tickets existants (changements de catégorie, assignations, messages)...`);
     
     for (const ticket of existingTickets) {
       try {
@@ -280,7 +282,58 @@ const syncTickets = async () => {
         const channel = await channelResponse.json();
         
         // ============================================
-        // 5.2 : Détecter si le ticket a été claimé/assigné
+        // 5.2 : Vérifier si la catégorie Discord a changé
+        // ============================================
+        const currentCategoryDiscordId = channel.parent_id;
+        const currentCategoryName = CATEGORY_MAPPINGS[currentCategoryDiscordId];
+        
+        // Récupérer l'ID de la catégorie BDD correspondante
+        let newCategoryId = null;
+        if (currentCategoryName) {
+          const categories = await sql`
+            SELECT id FROM categories 
+            WHERE name ILIKE ${currentCategoryName}
+            LIMIT 1
+          `;
+          newCategoryId = categories.length > 0 ? categories[0].id : null;
+        }
+        
+        // Mettre à jour la catégorie si elle a changé
+        if (newCategoryId && newCategoryId !== ticket.category_id) {
+          console.log(`📂 Changement de catégorie détecté pour ticket "${ticket.title}": Catégorie ${ticket.category_id} → ${newCategoryId} (${currentCategoryName})`);
+          
+          await sql`
+            UPDATE tickets 
+            SET 
+              category_id = ${newCategoryId},
+              updated_at = CURRENT_TIMESTAMP
+            WHERE id = ${ticket.id}
+          `;
+          
+          // Logger le changement de catégorie
+          await sql`
+            INSERT INTO ticket_activity_log (
+              ticket_id,
+              user_id,
+              action_type,
+              old_value,
+              new_value,
+              comment
+            ) VALUES (
+              ${ticket.id},
+              NULL,
+              'category_changed',
+              ${ticket.category_id},
+              ${newCategoryId},
+              ${`Catégorie changée automatiquement vers: ${currentCategoryName}`}
+            )
+          `;
+          
+          categoriesChanged++;
+        }
+        
+        // ============================================
+        // 5.3 : Détecter si le ticket a été claimé/assigné
         // ============================================
         const ticketInfo = parseTicketName(channel.name);
         let currentAssignedUserId = null;
@@ -352,7 +405,7 @@ const syncTickets = async () => {
         }
         
         // ============================================
-        // 5.3 : Mettre à jour le titre si changé
+        // 5.4 : Mettre à jour le titre si changé
         // ============================================
         if (channel.name !== ticket.title) {
           await sql`
@@ -366,7 +419,7 @@ const syncTickets = async () => {
         }
         
         // ============================================
-        // 5.4 : Synchroniser les nouveaux messages
+        // 5.5 : Synchroniser les nouveaux messages
         // ============================================
         const lastMessages = await sql`
           SELECT discord_message_id, created_at
@@ -404,7 +457,7 @@ const syncTickets = async () => {
           m.content.length > 0
         );
         
-        if (newMessages.length === 0 && !currentAssignedUserId) {
+        if (newMessages.length === 0 && !currentAssignedUserId && newCategoryId === ticket.category_id) {
           continue; // Pas de changements
         }
         
@@ -469,6 +522,7 @@ const syncTickets = async () => {
       new_tickets_created: ticketsCreated,
       existing_tickets_updated: ticketsUpdated,
       assignations_detected: assignationsDetected,
+      categories_changed: categoriesChanged,
       new_messages_synced: newMessagesCount,
       timestamp: new Date().toISOString()
     };
@@ -477,6 +531,7 @@ const syncTickets = async () => {
     console.log(`   - ${ticketsCreated} nouveaux tickets créés`);
     console.log(`   - ${ticketsUpdated} tickets existants mis à jour`);
     console.log(`   - ${assignationsDetected} assignations détectées`);
+    console.log(`   - ${categoriesChanged} changements de catégorie détectés`);
     console.log(`   - ${newMessagesCount} nouveaux messages synchronisés`);
     
     return summary;
