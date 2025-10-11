@@ -1,5 +1,5 @@
 // netlify/functions/get-tickets.js
-// Récupérer les tickets avec filtres
+// Récupérer les tickets avec filtres - VERSION CORRIGÉE
 
 const { neon } = require('@neondatabase/serverless');
 
@@ -50,11 +50,58 @@ exports.handler = async (event, context) => {
       offset = '0'
     } = params;
     
-    // Construire les conditions de filtrage
-    let conditions = [];
+    // Construire dynamiquement les conditions WHERE
+    const whereConditions = [];
+    const whereParams = [];
     
-    // Requête de base
-    let query = sql`
+    // Filtre par statut
+    if (status) {
+      whereConditions.push(`t.status = $${whereConditions.length + 1}`);
+      whereParams.push(status);
+    }
+    
+    // Filtre par priorité
+    if (priority) {
+      whereConditions.push(`t.priority = $${whereConditions.length + 1}`);
+      whereParams.push(priority);
+    }
+    
+    // Filtre par catégorie
+    if (category_id) {
+      whereConditions.push(`t.category_id = $${whereConditions.length + 1}`);
+      whereParams.push(parseInt(category_id));
+    }
+    
+    // Filtre par assignation
+    if (assigned_to) {
+      if (assigned_to === 'unassigned') {
+        whereConditions.push('t.assigned_to_user_id IS NULL');
+      } else if (assigned_to === 'me') {
+        whereConditions.push(`t.assigned_to_user_id = $${whereConditions.length + 1}`);
+        whereParams.push(userId);
+      } else {
+        // ID spécifique
+        whereConditions.push(`t.assigned_to_user_id = $${whereConditions.length + 1}`);
+        whereParams.push(assigned_to);
+      }
+    }
+    
+    // Filtre par recherche (titre ou username)
+    if (search && search.length > 0) {
+      whereConditions.push(`(
+        LOWER(t.title) LIKE $${whereConditions.length + 1} 
+        OR LOWER(t.created_by_username) LIKE $${whereConditions.length + 1}
+      )`);
+      whereParams.push(`%${search.toLowerCase()}%`);
+    }
+    
+    // Construire la clause WHERE
+    const whereClause = whereConditions.length > 0 
+      ? 'WHERE ' + whereConditions.join(' AND ')
+      : '';
+    
+    // Requête SQL complète avec les filtres dynamiques
+    const query = `
       SELECT 
         t.*,
         c.name as category_name,
@@ -66,144 +113,23 @@ exports.handler = async (event, context) => {
       FROM tickets t
       LEFT JOIN categories c ON c.id = t.category_id
       LEFT JOIN users u ON u.id = t.assigned_to_user_id
+      ${whereClause}
+      ORDER BY 
+        CASE WHEN t.is_unread THEN 0 ELSE 1 END,
+        CASE t.priority 
+          WHEN 'haute' THEN 1 
+          WHEN 'moyenne' THEN 2 
+          WHEN 'basse' THEN 3 
+        END,
+        t.created_at DESC
+      LIMIT $${whereParams.length + 1} OFFSET $${whereParams.length + 2}
     `;
     
-    // Appliquer les filtres selon les paramètres
-    let tickets;
+    // Ajouter limit et offset aux paramètres
+    whereParams.push(parseInt(limit), parseInt(offset));
     
-    if (status && priority && category_id && assigned_to) {
-      // Tous les filtres
-      if (assigned_to === 'unassigned') {
-        tickets = await sql`
-          SELECT 
-            t.*,
-            c.name as category_name,
-            c.emoji as category_emoji,
-            c.color as category_color,
-            u.discord_username as assigned_to_username,
-            u.discord_avatar_url as assigned_to_avatar,
-            u.discord_global_name as assigned_to_display_name
-          FROM tickets t
-          LEFT JOIN categories c ON c.id = t.category_id
-          LEFT JOIN users u ON u.id = t.assigned_to_user_id
-          WHERE t.status = ${status}
-            AND t.priority = ${priority}
-            AND t.category_id = ${parseInt(category_id)}
-            AND t.assigned_to_user_id IS NULL
-          ORDER BY 
-            CASE WHEN t.is_unread THEN 0 ELSE 1 END,
-            CASE t.priority 
-              WHEN 'haute' THEN 1 
-              WHEN 'moyenne' THEN 2 
-              WHEN 'basse' THEN 3 
-            END,
-            t.created_at DESC
-          LIMIT ${parseInt(limit)} OFFSET ${parseInt(offset)}
-        `;
-      } else {
-        const assignedUserId = assigned_to === 'me' ? userId : assigned_to;
-        tickets = await sql`
-          SELECT 
-            t.*,
-            c.name as category_name,
-            c.emoji as category_emoji,
-            c.color as category_color,
-            u.discord_username as assigned_to_username,
-            u.discord_avatar_url as assigned_to_avatar,
-            u.discord_global_name as assigned_to_display_name
-          FROM tickets t
-          LEFT JOIN categories c ON c.id = t.category_id
-          LEFT JOIN users u ON u.id = t.assigned_to_user_id
-          WHERE t.status = ${status}
-            AND t.priority = ${priority}
-            AND t.category_id = ${parseInt(category_id)}
-            AND t.assigned_to_user_id = ${assignedUserId}
-          ORDER BY 
-            CASE WHEN t.is_unread THEN 0 ELSE 1 END,
-            CASE t.priority 
-              WHEN 'haute' THEN 1 
-              WHEN 'moyenne' THEN 2 
-              WHEN 'basse' THEN 3 
-            END,
-            t.created_at DESC
-          LIMIT ${parseInt(limit)} OFFSET ${parseInt(offset)}
-        `;
-      }
-    } else if (status) {
-      // Filtre par statut uniquement
-      tickets = await sql`
-        SELECT 
-          t.*,
-          c.name as category_name,
-          c.emoji as category_emoji,
-          c.color as category_color,
-          u.discord_username as assigned_to_username,
-          u.discord_avatar_url as assigned_to_avatar,
-          u.discord_global_name as assigned_to_display_name
-        FROM tickets t
-        LEFT JOIN categories c ON c.id = t.category_id
-        LEFT JOIN users u ON u.id = t.assigned_to_user_id
-        WHERE t.status = ${status}
-        ORDER BY 
-          CASE WHEN t.is_unread THEN 0 ELSE 1 END,
-          CASE t.priority 
-            WHEN 'haute' THEN 1 
-            WHEN 'moyenne' THEN 2 
-            WHEN 'basse' THEN 3 
-          END,
-          t.created_at DESC
-        LIMIT ${parseInt(limit)} OFFSET ${parseInt(offset)}
-      `;
-    } else if (category_id) {
-      // Filtre par catégorie
-      tickets = await sql`
-        SELECT 
-          t.*,
-          c.name as category_name,
-          c.emoji as category_emoji,
-          c.color as category_color,
-          u.discord_username as assigned_to_username,
-          u.discord_avatar_url as assigned_to_avatar,
-          u.discord_global_name as assigned_to_display_name
-        FROM tickets t
-        LEFT JOIN categories c ON c.id = t.category_id
-        LEFT JOIN users u ON u.id = t.assigned_to_user_id
-        WHERE t.category_id = ${parseInt(category_id)}
-        ORDER BY 
-          CASE WHEN t.is_unread THEN 0 ELSE 1 END,
-          CASE t.priority 
-            WHEN 'haute' THEN 1 
-            WHEN 'moyenne' THEN 2 
-            WHEN 'basse' THEN 3 
-          END,
-          t.created_at DESC
-        LIMIT ${parseInt(limit)} OFFSET ${parseInt(offset)}
-      `;
-    } else {
-      // Tous les tickets
-      tickets = await sql`
-        SELECT 
-          t.*,
-          c.name as category_name,
-          c.emoji as category_emoji,
-          c.color as category_color,
-          u.discord_username as assigned_to_username,
-          u.discord_avatar_url as assigned_to_avatar,
-          u.discord_global_name as assigned_to_display_name
-        FROM tickets t
-        LEFT JOIN categories c ON c.id = t.category_id
-        LEFT JOIN users u ON u.id = t.assigned_to_user_id
-        ORDER BY 
-          CASE WHEN t.is_unread THEN 0 ELSE 1 END,
-          CASE t.priority 
-            WHEN 'haute' THEN 1 
-            WHEN 'moyenne' THEN 2 
-            WHEN 'basse' THEN 3 
-          END,
-          t.created_at DESC
-        LIMIT ${parseInt(limit)} OFFSET ${parseInt(offset)}
-      `;
-    }
+    // Exécuter la requête avec les paramètres
+    const tickets = await sql(query, whereParams);
     
     // Récupérer les statistiques
     const stats = await sql`
