@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vertigo RP - Dashboard Tickets</title>
-    <script src="/js/auth.js"></script>
-    <script src="/js/tickets.js"></script>
+    <title>Administration - Vertigo RP Dashboard</title>
+    <!-- ✅ CHANGEMENT : Utiliser auth-admin.js au lieu de auth.js -->
+    <script src="/js/auth-admin.js"></script>
     <style>
         :root {
             --discord-dark: #2b2d31;
@@ -20,7 +20,6 @@
             --danger: #ed4245;
             --warning: #faa61a;
             --info: #00b0f4;
-            --twitch-purple: #9146ff;
         }
 
         * {
@@ -33,7 +32,6 @@
             font-family: 'gg sans', 'Noto Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
             background: var(--discord-darker);
             color: var(--text-primary);
-            overflow-x: hidden;
         }
 
         /* Header */
@@ -44,7 +42,6 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
         }
 
         .header-left {
@@ -56,261 +53,89 @@
         .logo {
             font-size: 1.5rem;
             font-weight: bold;
-            background: linear-gradient(45deg, var(--twitch-purple), var(--discord-blurple));
+            background: linear-gradient(45deg, #9146ff, #5865f2);
             -webkit-background-clip: text;
             background-clip: text;
             -webkit-text-fill-color: transparent;
         }
 
-        .header-title h1 {
-            font-size: 1.2rem;
+        .nav-links {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .nav-link {
+            padding: 0.5rem 1rem;
+            background: var(--discord-light);
+            border-radius: 6px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .nav-link:hover {
+            background: var(--discord-hover);
             color: var(--text-primary);
         }
 
-        .header-title p {
-            font-size: 0.85rem;
-            color: var(--text-secondary);
+        /* Main Container */
+        .container {
+            max-width: 1400px;
+            margin: 2rem auto;
+            padding: 0 2rem;
         }
 
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            cursor: pointer;
-            position: relative;
-        }
-
-        .user-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            border: 2px solid var(--discord-blurple);
-        }
-
-        .user-details {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .user-name {
-            font-size: 0.95rem;
-            font-weight: 600;
-        }
-
-        .user-role {
-            font-size: 0.8rem;
-            color: var(--text-secondary);
-        }
-
-        /* Main Layout */
-        .main-container {
-            display: flex;
-            height: calc(100vh - 70px);
-        }
-
-        /* Sidebar */
-        .sidebar {
-            width: 280px;
-            background: var(--discord-dark);
-            border-right: 1px solid rgba(255, 255, 255, 0.05);
-            padding: 1.5rem;
-            overflow-y: auto;
-        }
-
-        .sidebar-section {
+        .page-header {
             margin-bottom: 2rem;
         }
 
-        .sidebar-section h3 {
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            color: var(--text-muted);
-            margin-bottom: 0.75rem;
-            letter-spacing: 0.5px;
+        .page-title {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
         }
 
-        .stat-cards {
-            display: flex;
-            flex-direction: column;
-            gap: 0.75rem;
+        .page-subtitle {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
         }
 
         .stat-card {
-            background: var(--discord-light);
-            padding: 1rem;
+            background: var(--discord-dark);
+            padding: 1.5rem;
             border-radius: 8px;
             border-left: 3px solid var(--discord-blurple);
         }
 
-        .stat-card.urgent {
-            border-left-color: var(--danger);
-        }
-
-        .stat-card.pending {
-            border-left-color: var(--warning);
-        }
-
-        .stat-card.resolved {
-            border-left-color: var(--success);
-        }
-
         .stat-number {
-            font-size: 1.8rem;
+            font-size: 2rem;
             font-weight: bold;
             color: var(--text-primary);
         }
 
         .stat-label {
-            font-size: 0.85rem;
             color: var(--text-secondary);
-            margin-top: 0.25rem;
-        }
-
-        .filter-group {
-            margin-bottom: 1rem;
-        }
-
-        .filter-label {
-            font-size: 0.85rem;
-            color: var(--text-secondary);
-            margin-bottom: 0.5rem;
-            display: block;
-        }
-
-        .filter-select, .filter-input {
-            width: 100%;
-            padding: 0.65rem;
-            background: var(--discord-light);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 6px;
-            color: var(--text-primary);
             font-size: 0.9rem;
+            margin-top: 0.5rem;
         }
 
-        .filter-select:focus, .filter-input:focus {
-            outline: none;
-            border-color: var(--discord-blurple);
-        }
-
-        .category-filters {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-
-        .category-btn {
-            padding: 0.6rem;
-            background: var(--discord-light);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 6px;
-            color: var(--text-secondary);
-            cursor: pointer;
-            transition: all 0.2s;
-            font-size: 0.9rem;
-            text-align: left;
-        }
-
-        .category-btn:hover {
-            background: var(--discord-hover);
-            color: var(--text-primary);
-        }
-
-        .category-btn.active {
-            background: var(--discord-blurple);
-            color: white;
-            border-color: var(--discord-blurple);
-        }
-
-        /* Content Area */
-        .content {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        /* Tabs */
-        .tabs-container {
+        /* Actions Bar */
+        .actions-bar {
             background: var(--discord-dark);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-            padding: 0 2rem;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
             display: flex;
-            gap: 0.5rem;
-        }
-
-        .tab {
-            padding: 1rem 1.5rem;
-            color: var(--text-secondary);
-            cursor: pointer;
-            transition: all 0.2s;
-            border-bottom: 2px solid transparent;
-            font-weight: 500;
-            position: relative;
-        }
-
-        .tab:hover {
-            color: var(--text-primary);
-            background: rgba(255, 255, 255, 0.03);
-        }
-
-        .tab.active {
-            color: var(--discord-blurple);
-            border-bottom-color: var(--discord-blurple);
-        }
-
-        .tab-badge {
-            display: inline-block;
-            background: var(--discord-light);
-            color: var(--text-secondary);
-            padding: 0.15rem 0.5rem;
-            border-radius: 12px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            margin-left: 0.5rem;
-        }
-
-        .tab.active .tab-badge {
-            background: var(--discord-blurple);
-            color: white;
-        }
-
-        /* Toolbar */
-        .toolbar {
-            background: var(--discord-dark);
-            padding: 1rem 2rem;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-            display: flex;
-            justify-content: space-between;
+            gap: 1rem;
             align-items: center;
-        }
-
-        .search-box {
-            position: relative;
-            flex: 1;
-            max-width: 400px;
-        }
-
-        .search-box input {
-            width: 100%;
-            padding: 0.65rem 0.65rem 0.65rem 2.5rem;
-            background: var(--discord-light);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 6px;
-            color: var(--text-primary);
-            font-size: 0.9rem;
-        }
-
-        .search-box::before {
-            content: "🔍";
-            position: absolute;
-            left: 0.75rem;
-            top: 50%;
-            transform: translateY(-50%);
-        }
-
-        .toolbar-actions {
-            display: flex;
-            gap: 0.75rem;
+            flex-wrap: wrap;
         }
 
         .btn {
@@ -338,187 +163,132 @@
             background: #4752c4;
         }
 
-        /* Tickets Grid */
-        .tickets-container {
-            flex: 1;
-            overflow-y: auto;
-            padding: 2rem;
+        .btn-success {
+            background: var(--success);
+            border-color: var(--success);
         }
 
-        .tickets-grid {
-            display: grid;
-            gap: 1rem;
+        .btn-danger {
+            background: var(--danger);
+            border-color: var(--danger);
         }
 
-        .ticket-card {
+        /* Table */
+        .table-container {
             background: var(--discord-dark);
-            border: 1px solid rgba(255, 255, 255, 0.05);
             border-radius: 8px;
-            padding: 1.25rem;
-            cursor: pointer;
-            transition: all 0.2s;
-            position: relative;
+            overflow: hidden;
         }
 
-        .ticket-card:hover {
-            border-color: var(--discord-blurple);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        table {
+            width: 100%;
+            border-collapse: collapse;
         }
 
-        .ticket-card.unread {
-            border-left: 3px solid var(--danger);
+        thead {
+            background: var(--discord-light);
         }
 
-        .ticket-header {
+        th {
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        td {
+            padding: 1rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        tbody tr:hover {
+            background: var(--discord-light);
+        }
+
+        .user-info {
             display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 0.75rem;
+            align-items: center;
+            gap: 0.75rem;
         }
 
-        .ticket-title {
-            font-size: 1.05rem;
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+        }
+
+        .user-details {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .user-name {
             font-weight: 600;
             color: var(--text-primary);
-            margin-bottom: 0.25rem;
         }
 
-        .ticket-id {
-            font-size: 0.8rem;
+        .user-id {
+            font-size: 0.75rem;
             color: var(--text-muted);
             font-family: 'Courier New', monospace;
         }
 
-        .ticket-badges {
-            display: flex;
-            gap: 0.5rem;
-            flex-wrap: wrap;
-        }
-
         .badge {
+            display: inline-block;
             padding: 0.25rem 0.6rem;
             border-radius: 12px;
             font-size: 0.75rem;
             font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.3px;
         }
 
-        .badge.new {
-            background: var(--info);
-            color: white;
-            animation: pulse 2s infinite;
-        }
-
-        .badge.urgent {
-            background: var(--danger);
-            color: white;
-        }
-
-        .badge.pending {
-            background: var(--warning);
-            color: var(--discord-darker);
-        }
-
-        .badge.resolved {
+        .badge-success {
             background: var(--success);
             color: white;
         }
 
-        .badge.category {
-            background: var(--discord-light);
-            color: var(--text-secondary);
+        .badge-danger {
+            background: var(--danger);
+            color: white;
         }
 
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.6; }
+        .badge-warning {
+            background: var(--warning);
+            color: var(--discord-darker);
         }
 
-        .ticket-meta {
+        .badge-super {
+            background: linear-gradient(45deg, #9146ff, #5865f2);
+            color: white;
+        }
+
+        .roles-list {
             display: flex;
-            gap: 1.5rem;
-            margin-top: 0.75rem;
+            gap: 0.25rem;
             flex-wrap: wrap;
         }
 
-        .ticket-meta-item {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            font-size: 0.85rem;
+        .role-badge {
+            padding: 0.15rem 0.5rem;
+            border-radius: 8px;
+            font-size: 0.7rem;
+            background: var(--discord-light);
             color: var(--text-secondary);
         }
 
-        .ticket-meta-item img {
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-        }
-
-        .notification-badge {
-            position: absolute;
-            top: 1rem;
-            right: 1rem;
-            background: var(--danger);
-            color: white;
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
+        .actions-cell {
             display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.75rem;
-            font-weight: bold;
-        }
-
-        .priority-indicator {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            display: inline-block;
-        }
-
-        .priority-high { background: var(--danger); }
-        .priority-medium { background: var(--warning); }
-        .priority-low { background: var(--success); }
-
-        .assigned-user {
-            display: flex;
-            align-items: center;
             gap: 0.5rem;
+        }
+
+        .btn-sm {
             padding: 0.4rem 0.75rem;
-            background: var(--discord-light);
-            border-radius: 16px;
-            font-size: 0.85rem;
+            font-size: 0.8rem;
         }
 
-        .assigned-user img {
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-        }
-
-        /* Scrollbar */
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: var(--discord-darker);
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: var(--discord-light);
-            border-radius: 4px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: var(--discord-hover);
-        }
-
-        /* Modal Ticket Detail */
+        /* Modal */
         .modal {
             display: none;
             position: fixed;
@@ -539,12 +309,9 @@
         .modal-content {
             background: var(--discord-dark);
             width: 90%;
-            max-width: 900px;
-            max-height: 90vh;
+            max-width: 600px;
             border-radius: 8px;
             overflow: hidden;
-            display: flex;
-            flex-direction: column;
         }
 
         .modal-header {
@@ -555,10 +322,9 @@
             align-items: center;
         }
 
-        .modal-body {
-            flex: 1;
-            overflow-y: auto;
-            padding: 1.5rem;
+        .modal-title {
+            font-size: 1.3rem;
+            font-weight: 600;
         }
 
         .close-btn {
@@ -574,257 +340,273 @@
             color: var(--text-primary);
         }
 
-        .message-thread {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
+        .modal-body {
+            padding: 1.5rem;
         }
 
-        .message {
-            display: flex;
-            gap: 1rem;
+        .form-group {
+            margin-bottom: 1.5rem;
         }
 
-        .message-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            flex-shrink: 0;
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            font-weight: 500;
         }
 
-        .message-content {
-            flex: 1;
-        }
-
-        .message-author {
-            font-weight: 600;
+        .form-input {
+            width: 100%;
+            padding: 0.75rem;
+            background: var(--discord-light);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
             color: var(--text-primary);
             font-size: 0.95rem;
         }
 
-        .message-timestamp {
-            font-size: 0.75rem;
-            color: var(--text-muted);
-            margin-left: 0.5rem;
+        .form-input:focus {
+            outline: none;
+            border-color: var(--discord-blurple);
         }
 
-        .message-text {
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-            margin-top: 0.25rem;
-            line-height: 1.5;
-        }
-
-        /* Dropdown menu user */
-        .user-menu {
-            position: absolute;
-            top: 100%;
-            right: 0;
-            margin-top: 0.5rem;
-            background: var(--discord-dark);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            background: var(--discord-light);
             border-radius: 6px;
-            padding: 0.5rem 0;
-            min-width: 200px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-            display: none;
-            z-index: 100;
-        }
-
-        .user-menu.active {
-            display: block;
-        }
-
-        .user-menu-item {
-            padding: 0.75rem 1rem;
             cursor: pointer;
-            transition: background 0.2s;
-            color: var(--text-secondary);
         }
 
-        .user-menu-item:hover {
-            background: var(--discord-hover);
-            color: var(--text-primary);
+        .checkbox-group input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
         }
 
-        .user-menu-item.danger {
+        .roles-checkboxes {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
+        }
+
+        .modal-footer {
+            padding: 1.5rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+        }
+
+        .alert {
+            padding: 1rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+        }
+
+        .alert-success {
+            background: rgba(59, 165, 93, 0.2);
+            border: 1px solid var(--success);
+            color: var(--success);
+        }
+
+        .alert-error {
+            background: rgba(237, 66, 69, 0.2);
+            border: 1px solid var(--danger);
             color: var(--danger);
         }
 
-        .user-menu-item.danger:hover {
-            background: rgba(237, 66, 69, 0.1);
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-secondary);
+        }
+
+        .spinner {
+            border: 3px solid var(--discord-light);
+            border-top: 3px solid var(--discord-blurple);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
 <body>
-    <div id="app" style="display: none;">
-        <!-- Header -->
-        <header class="header">
-            <div class="header-left">
-                <div class="logo">🎮 VERTIGO RP</div>
-                <div class="header-title">
-                    <h1>Dashboard Ticketing</h1>
-                    <p>Gestion des demandes Discord</p>
-                </div>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-left">
+            <div class="logo">👑 ADMIN PANEL</div>
+            <div class="nav-links">
+                <a href="/" class="nav-link">📊 Dashboard</a>
+                <a href="/admin.html" class="nav-link">⚙️ Administration</a>
             </div>
-            <div class="user-info" onclick="toggleUserMenu()">
-                <div class="user-details">
-                    <div class="user-name">Chargement...</div>
-                    <div class="user-role">👤 Staff</div>
-                </div>
-                <img src="https://cdn.discordapp.com/embed/avatars/0.png" alt="Avatar" class="user-avatar">
-                <div class="user-menu" id="userMenu">
-                    <div class="user-menu-item" onclick="window.open('https://discord.com/channels/1288511254369013831', '_blank')">
-                        💬 Ouvrir Discord
-                    </div>
-                    <div class="user-menu-item danger" onclick="logout(); event.stopPropagation();">
-                        🚪 Déconnexion
-                    </div>
-                </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1 class="page-title">Gestion des Utilisateurs</h1>
+            <p class="page-subtitle">Gérez les accès et les permissions des membres du staff</p>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card">
+                <div class="stat-number">-</div>
+                <div class="stat-label">Utilisateurs Total</div>
             </div>
-        </header>
+            <div class="stat-card">
+                <div class="stat-number">-</div>
+                <div class="stat-label">Avec Accès Dashboard</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">-</div>
+                <div class="stat-label">Super Admins</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">-</div>
+                <div class="stat-label">Actifs (7 derniers jours)</div>
+            </div>
+        </div>
 
-        <!-- Main Container -->
-        <div class="main-container">
-            <!-- Sidebar -->
-            <aside class="sidebar">
-                <!-- Statistics -->
-                <div class="sidebar-section">
-                    <h3>📊 Statistiques</h3>
-                    <div class="stat-cards">
-                        <div class="stat-card urgent">
-                            <div class="stat-number">0</div>
-                            <div class="stat-label">Tickets Urgents</div>
-                        </div>
-                        <div class="stat-card pending">
-                            <div class="stat-number">0</div>
-                            <div class="stat-label">En attente</div>
-                        </div>
-                        <div class="stat-card resolved">
-                            <div class="stat-number">0</div>
-                            <div class="stat-label">Résolus (7j)</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number">0h</div>
-                            <div class="stat-label">Temps moyen</div>
-                        </div>
-                    </div>
-                </div>
+        <!-- Actions Bar -->
+        <div class="actions-bar">
+            <button class="btn btn-primary" onclick="openAddUserModal()">
+                ➕ Ajouter un utilisateur
+            </button>
+            <button class="btn" onclick="loadUsers()">
+                🔄 Actualiser
+            </button>
+        </div>
 
-                <!-- Filters -->
-                <div class="sidebar-section">
-                    <h3>🔍 Filtres</h3>
-                    
-                    <div class="filter-group">
-                        <label class="filter-label">Assigné à</label>
-                        <select class="filter-select" onchange="filterByAssignation(this.value)">
-                            <option value="all">Tous</option>
-                            <option value="me">Moi</option>
-                            <option value="unassigned">Non assigné</option>
-                        </select>
-                    </div>
-
-                    <div class="filter-group">
-                        <label class="filter-label">Priorité</label>
-                        <select class="filter-select" onchange="filterByPriority(this.value)">
-                            <option value="all">Toutes</option>
-                            <option value="haute">🔴 Haute</option>
-                            <option value="moyenne">🟡 Moyenne</option>
-                            <option value="basse">🟢 Basse</option>
-                        </select>
-                    </div>
-                </div>
-
-                <!-- Categories -->
-                <div class="sidebar-section">
-                    <h3>📂 Catégories</h3>
-                    <div class="category-filters">
-                        <button class="category-btn active" onclick="filterByCategory('all')">📋 Tous</button>
-                        <button class="category-btn" onclick="filterByCategory('1')">💰 Claim</button>
-                        <button class="category-btn" onclick="filterByCategory('2')">😊 Parrainage</button>
-                        <button class="category-btn" onclick="filterByCategory('3')">🎮 RP</button>
-                        <button class="category-btn" onclick="filterByCategory('4')">📋 Dossier</button>
-                        <button class="category-btn" onclick="filterByCategory('5')">🛠 Bugs</button>
-                        <button class="category-btn" onclick="filterByCategory('6')">❓ Questions</button>
-                    </div>
-                </div>
-            </aside>
-
-            <!-- Main Content -->
-            <main class="content">
-                <!-- Tabs -->
-                <div class="tabs-container">
-                    <div class="tab active" data-tab="active" onclick="switchTab('active')">
-                        📋 Tickets actifs
-                        <span class="tab-badge" id="activeTabBadge">0</span>
-                    </div>
-                    <div class="tab" data-tab="resolved" onclick="switchTab('resolved')">
-                        ✅ Tickets résolus
-                        <span class="tab-badge" id="resolvedTabBadge">0</span>
-                    </div>
-                </div>
-
-                <!-- Toolbar -->
-                <div class="toolbar">
-                    <div class="search-box">
-                        <input type="text" placeholder="Rechercher un ticket, utilisateur...">
-                    </div>
-                    <div class="toolbar-actions">
-                        <button class="btn">🔄 Actualiser</button>
-                        <button class="btn" onclick="logout()">🚪 Déconnexion</button>
-                    </div>
-                </div>
-
-                <!-- Tickets List -->
-                <div class="tickets-container">
-                    <div class="tickets-grid">
-                        <!-- Les tickets seront chargés ici dynamiquement -->
-                    </div>
-                </div>
-            </main>
+        <!-- Users Table -->
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Utilisateur</th>
+                        <th>Rôles</th>
+                        <th>Accès Dashboard</th>
+                        <th>Statut</th>
+                        <th>Dernière connexion</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="usersTableBody">
+                    <tr>
+                        <td colspan="6">
+                            <div class="loading">
+                                <div class="spinner"></div>
+                                <div>Chargement des utilisateurs...</div>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
     </div>
 
-    <!-- Modal Ticket Detail -->
-    <div class="modal" id="ticketModal">
+    <!-- Modal Add User -->
+    <div class="modal" id="addUserModal">
         <div class="modal-content">
             <div class="modal-header">
-                <div>
-                    <div class="ticket-title">Chargement...</div>
-                    <div class="ticket-id">#...</div>
-                </div>
-                <button class="close-btn" onclick="closeTicketDetail()">✖</button>
+                <h2 class="modal-title">Ajouter un utilisateur</h2>
+                <button class="close-btn" onclick="closeAddUserModal()">✖</button>
             </div>
             <div class="modal-body">
-                <div class="message-thread">
-                    <!-- Les messages seront chargés ici -->
+                <div id="addUserAlert"></div>
+                
+                <div class="form-group">
+                    <label class="form-label">Discord ID *</label>
+                    <input 
+                        type="text" 
+                        class="form-input" 
+                        id="discordIdInput" 
+                        placeholder="343134692444209153"
+                    >
+                    <small style="color: var(--text-muted); font-size: 0.8rem; margin-top: 0.25rem; display: block;">
+                        Pour obtenir un Discord ID : Mode Développeur → Clic droit sur l'utilisateur → Copier l'identifiant
+                    </small>
                 </div>
+
+                <div class="form-group">
+                    <label class="checkbox-group">
+                        <input type="checkbox" id="canAccessCheckbox">
+                        <span>Donner accès au dashboard</span>
+                    </label>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Rôles</label>
+                    <div class="roles-checkboxes" id="rolesCheckboxes">
+                        <!-- Rôles chargés dynamiquement -->
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeAddUserModal()">Annuler</button>
+                <button class="btn btn-primary" onclick="addUser()">Ajouter</button>
             </div>
         </div>
     </div>
 
-    <script>
-        function toggleUserMenu() {
-            const menu = document.getElementById('userMenu');
-            menu.classList.toggle('active');
-        }
+    <!-- Modal Edit User -->
+    <div class="modal" id="editUserModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Modifier l'utilisateur</h2>
+                <button class="close-btn" onclick="closeEditUserModal()">✖</button>
+            </div>
+            <div class="modal-body">
+                <div id="editUserAlert"></div>
+                
+                <input type="hidden" id="editUserId">
+                
+                <div class="form-group">
+                    <label class="form-label">Utilisateur</label>
+                    <div id="editUserInfo"></div>
+                </div>
 
-        // Fermer le menu au clic extérieur
-        document.addEventListener('click', (e) => {
-            const userInfo = document.querySelector('.user-info');
-            const userMenu = document.getElementById('userMenu');
-            if (userMenu && !userInfo.contains(e.target)) {
-                userMenu.classList.remove('active');
-            }
-        });
+                <div class="form-group">
+                    <label class="checkbox-group">
+                        <input type="checkbox" id="editCanAccessCheckbox">
+                        <span>Accès au dashboard</span>
+                    </label>
+                </div>
 
-        // Activer/désactiver les boutons de catégorie
-        document.querySelectorAll('.category-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
-                this.classList.add('active');
-            });
-        });
-    </script>
+                <div class="form-group">
+                    <label class="checkbox-group">
+                        <input type="checkbox" id="editIsActiveCheckbox">
+                        <span>Compte actif</span>
+                    </label>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Rôles</label>
+                    <div class="roles-checkboxes" id="editRolesCheckboxes">
+                        <!-- Rôles chargés dynamiquement -->
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeEditUserModal()">Annuler</button>
+                <button class="btn btn-primary" onclick="saveUser()">Enregistrer</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/admin.js"></script>
 </body>
 </html>
