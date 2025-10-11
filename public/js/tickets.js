@@ -1,8 +1,9 @@
 // public/js/tickets.js
-// Gestion des tickets côté client - VERSION AVEC AUTO-REFRESH, ASSIGNATION FLEXIBLE ET GESTION DES PRIORITÉS
+// Gestion des tickets côté client - VERSION AVEC ONGLETS ACTIFS/RÉSOLUS
 
 let allTickets = [];
 let allStaffUsers = [];
+let currentTab = 'active'; // Onglet actif par défaut
 let currentFilters = {
   status: null,
   priority: null,
@@ -14,6 +15,20 @@ let currentFilters = {
 // Variables pour l'auto-refresh
 let autoRefreshInterval = null;
 const AUTO_REFRESH_DELAY = 120000; // 2 minutes en millisecondes
+
+// Changer d'onglet
+function switchTab(tabName) {
+  currentTab = tabName;
+  
+  // Mettre à jour l'UI des onglets
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.classList.remove('active');
+  });
+  document.querySelector(`.tab[data-tab="${tabName}"]`).classList.add('active');
+  
+  // Recharger les tickets avec le filtre approprié
+  loadTickets();
+}
 
 // Charger la liste des utilisateurs staff
 async function loadStaffUsers() {
@@ -45,8 +60,18 @@ async function loadTickets(silent = false) {
     
     // Construire l'URL avec les filtres
     const params = new URLSearchParams();
+    
+    // Ajouter le filtre de statut selon l'onglet actif
+    if (currentTab === 'active') {
+      // Ne pas ajouter de filtre de statut, mais exclure les résolus côté serveur
+      // On va filtrer côté client pour plus de flexibilité
+    } else if (currentTab === 'resolved') {
+      params.append('status', 'resolu');
+    }
+    
+    // Ajouter les autres filtres
     Object.keys(currentFilters).forEach(key => {
-      if (currentFilters[key]) {
+      if (currentFilters[key] && key !== 'status') {
         params.append(key, currentFilters[key]);
       }
     });
@@ -60,14 +85,21 @@ async function loadTickets(silent = false) {
     }
     
     const data = await response.json();
-    allTickets = data.tickets;
+    
+    // Filtrer les tickets selon l'onglet
+    if (currentTab === 'active') {
+      allTickets = data.tickets.filter(t => t.status !== 'resolu');
+    } else {
+      allTickets = data.tickets;
+    }
     
     // Mettre à jour l'affichage
     displayTickets(allTickets);
     updateStats(data.stats);
+    updateTabBadges(data.tickets);
     
     if (!silent) {
-      console.log(`✅ ${allTickets.length} tickets chargés`);
+      console.log(`✅ ${allTickets.length} tickets chargés (onglet: ${currentTab})`);
     }
     
   } catch (error) {
@@ -78,12 +110,28 @@ async function loadTickets(silent = false) {
   }
 }
 
+// Mettre à jour les badges des onglets
+function updateTabBadges(allTicketsData) {
+  const activeCount = allTicketsData.filter(t => t.status !== 'resolu').length;
+  const resolvedCount = allTicketsData.filter(t => t.status === 'resolu').length;
+  
+  const activeBadge = document.getElementById('activeTabBadge');
+  const resolvedBadge = document.getElementById('resolvedTabBadge');
+  
+  if (activeBadge) activeBadge.textContent = activeCount;
+  if (resolvedBadge) resolvedBadge.textContent = resolvedCount;
+}
+
 // Afficher les tickets dans le DOM
 function displayTickets(tickets) {
   const container = document.querySelector('.tickets-grid');
   if (!container) return;
   
   if (tickets.length === 0) {
+    const emptyMessage = currentTab === 'active' 
+      ? 'Aucun ticket actif trouvé' 
+      : 'Aucun ticket résolu trouvé';
+    
     container.innerHTML = `
       <div style="
         text-align: center;
@@ -91,7 +139,7 @@ function displayTickets(tickets) {
         color: #b5bac1;
       ">
         <div style="font-size: 3rem; margin-bottom: 1rem;">📭</div>
-        <h3 style="font-size: 1.2rem; margin-bottom: 0.5rem;">Aucun ticket trouvé</h3>
+        <h3 style="font-size: 1.2rem; margin-bottom: 0.5rem;">${emptyMessage}</h3>
         <p>Essayez de modifier vos filtres de recherche</p>
       </div>
     `;
@@ -224,7 +272,7 @@ function displayTicketModal(ticket, messages) {
     `).join('');
   }
   
-  // ✅ AJOUT : Ajouter le dropdown de priorité
+  // Ajouter le dropdown de priorité
   addPriorityDropdown(ticket);
   
   // Ajouter le bouton d'assignation si le ticket n'est pas assigné
@@ -243,8 +291,8 @@ async function addClaimButton(ticket) {
   const existingContainer = modalHeader.querySelector('.assign-container');
   if (existingContainer) existingContainer.remove();
   
-  // Ajouter l'interface d'assignation seulement si le ticket n'est pas assigné
-  if (!ticket.assigned_to_user_id && currentUser) {
+  // Ajouter l'interface d'assignation seulement si le ticket n'est pas assigné et pas résolu
+  if (!ticket.assigned_to_user_id && ticket.status !== 'resolu' && currentUser) {
     // Récupérer la liste des utilisateurs staff (utiliser cache si déjà chargé)
     if (allStaffUsers.length === 0) {
       await loadStaffUsers();
@@ -439,7 +487,7 @@ async function claimTicket(ticketId, userId) {
   }
 }
 
-// ✅ NOUVEAU : Mettre à jour la priorité d'un ticket
+// Mettre à jour la priorité d'un ticket
 async function updateTicketPriority(ticketId, newPriority) {
   try {
     console.log(`🎯 Mise à jour priorité du ticket ${ticketId} → ${newPriority || 'aucune'}`);
@@ -474,7 +522,7 @@ async function updateTicketPriority(ticketId, newPriority) {
   }
 }
 
-// ✅ NOUVEAU : Ajouter un dropdown de sélection de priorité au modal
+// Ajouter un dropdown de sélection de priorité au modal
 function addPriorityDropdown(ticket) {
   const modalHeader = document.querySelector('.modal-header');
   if (!modalHeader) return;
@@ -482,6 +530,9 @@ function addPriorityDropdown(ticket) {
   // Supprimer l'ancien conteneur de priorité s'il existe
   const existingContainer = modalHeader.querySelector('.priority-container');
   if (existingContainer) existingContainer.remove();
+  
+  // Ne pas afficher le dropdown de priorité pour les tickets résolus
+  if (ticket.status === 'resolu') return;
   
   // Créer le conteneur de priorité
   const priorityContainer = document.createElement('div');
@@ -571,14 +622,14 @@ function addPriorityDropdown(ticket) {
   }
 }
 
-// ✅ Fermer le modal de détail ET forcer un refresh
+// Fermer le modal de détail ET forcer un refresh
 function closeTicketDetail() {
   const modal = document.getElementById('ticketModal');
   if (modal) {
     modal.classList.remove('active');
   }
   
-  // ✅ FORCER UN REFRESH après fermeture de la popup
+  // Forcer un refresh après fermeture de la popup
   console.log('🔄 Refresh après fermeture de la popup des messages');
   loadTickets(false); // Refresh visible (non-silencieux)
 }
@@ -606,12 +657,6 @@ function applyFilters() {
 // Recherche
 function handleSearch(searchTerm) {
   currentFilters.search = searchTerm || null;
-  loadTickets();
-}
-
-// Gérer les filtres de statut
-function filterByStatus(status) {
-  currentFilters.status = status === 'all' ? null : status;
   loadTickets();
 }
 
@@ -694,7 +739,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
   
-  // ✅ AUTO-REFRESH : Actualiser automatiquement toutes les 2 minutes (120000ms)
+  // Auto-refresh : Actualiser automatiquement toutes les 2 minutes
   setInterval(() => {
     console.log('🔄 Auto-refresh des tickets...');
     loadTickets(true); // true = refresh silencieux
