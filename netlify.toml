@@ -39,13 +39,7 @@
   to = "/.netlify/functions/claim-ticket"
   status = 200
 
-# Redirection SPA - doit être en dernier
 [[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
-
-  [[redirects]]
   from = "/api/admin/grant-access"
   to = "/.netlify/functions/admin-grant-access"
   status = 200
@@ -53,4 +47,15 @@
 [[redirects]]
   from = "/api/sync-tickettool-v2"
   to = "/.netlify/functions/sync-tickettool-v2"
+  status = 200
+
+[[redirects]]
+  from = "/api/webhook/discord"
+  to = "/.netlify/functions/webhook-discord"
+  status = 200
+
+# Redirection SPA - doit être en dernier
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
   status = 200
