@@ -229,6 +229,58 @@
             overflow: hidden;
         }
 
+        /* Tabs Bar - NOUVEAU */
+        .tabs-bar {
+            background: var(--discord-dark);
+            padding: 0 2rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .tab {
+            padding: 1rem 1.5rem;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.95rem;
+            font-weight: 500;
+            border-bottom: 2px solid transparent;
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .tab:hover {
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .tab.active {
+            color: var(--discord-blurple);
+            border-bottom-color: var(--discord-blurple);
+            background: rgba(88, 101, 242, 0.1);
+        }
+
+        .tab-badge {
+            background: var(--discord-light);
+            color: var(--text-secondary);
+            padding: 0.2rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            min-width: 22px;
+            text-align: center;
+        }
+
+        .tab.active .tab-badge {
+            background: var(--discord-blurple);
+            color: white;
+        }
+
         /* Toolbar */
         .toolbar {
             background: var(--discord-dark);
@@ -670,17 +722,6 @@
                 <div class="sidebar-section">
                     <h3>🔍 Filtres</h3>
                     <div class="filter-group">
-                        <label class="filter-label">Statut</label>
-                        <select class="filter-select" onchange="filterByStatus(this.value)">
-                            <option value="all">Tous les tickets</option>
-                            <option value="nouveau">🆕 Nouveaux</option>
-                            <option value="urgent">⚠️ Urgents</option>
-                            <option value="en_cours">⏳ En cours</option>
-                            <option value="resolu">✅ Résolus</option>
-                        </select>
-                    </div>
-
-                    <div class="filter-group">
                         <label class="filter-label">Assigné à</label>
                         <select class="filter-select" onchange="filterByAssignation(this.value)">
                             <option value="all">Tous</option>
@@ -717,6 +758,18 @@
 
             <!-- Main Content -->
             <main class="content">
+                <!-- Tabs Bar - NOUVEAU -->
+                <div class="tabs-bar">
+                    <button class="tab active" data-tab="active" onclick="switchTab('active')">
+                        📥 Tickets Actifs
+                        <span class="tab-badge" id="activeTabBadge">0</span>
+                    </button>
+                    <button class="tab" data-tab="resolved" onclick="switchTab('resolved')">
+                        ✅ Tickets Résolus
+                        <span class="tab-badge" id="resolvedTabBadge">0</span>
+                    </button>
+                </div>
+
                 <!-- Toolbar -->
                 <div class="toolbar">
                     <div class="search-box">
