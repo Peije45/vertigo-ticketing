@@ -87,6 +87,12 @@
   to = "/.netlify/functions/admin-fix-categories"
   status = 200
 
+# ✅ ROUTE : Mise à jour de la priorité d'un ticket
+[[redirects]]
+  from = "/api/update-ticket-priority"
+  to = "/.netlify/functions/update-ticket-priority"
+  status = 200
+
 # Redirection SPA - doit être en dernier
 [[redirects]]
   from = "/*"
