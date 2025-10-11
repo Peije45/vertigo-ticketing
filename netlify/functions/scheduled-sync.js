@@ -1,6 +1,6 @@
 // netlify/functions/scheduled-sync.js
 // Synchronisation automatique COMPLÈTE des tickets toutes les X minutes
-// ✅ VERSION AMÉLIORÉE : Détecte les assignations ET les changements de catégorie
+// ✅ VERSION MODIFIÉE : Priorité NULL par défaut (attribution manuelle)
 
 const { neon } = require('@neondatabase/serverless');
 const { schedule } = require('@netlify/functions');
@@ -145,8 +145,8 @@ const syncTickets = async () => {
         // Déterminer le statut
         const status = assignedUserId ? 'en_cours' : 'nouveau';
         
-        // Priorité par défaut selon la catégorie
-        const priority = (categoryName === 'Claim' || categoryName === 'Bugs') ? 'haute' : 'moyenne';
+        // ✅ MODIFIÉ : Priorité NULL par défaut - à attribuer manuellement
+        const priority = null;
         
         // Date de création (à partir du snowflake Discord)
         const createdAt = new Date((parseInt(channel.id) / 4194304) + 1420070400000).toISOString();
@@ -585,10 +585,3 @@ function parseTicketName(name) {
 // ============================================
 // S'exécute automatiquement toutes les 2 minutes
 exports.handler = schedule('*/2 * * * *', syncTickets);
-
-// Note sur le cron format: */2 * * * *
-// └─ Minutes (*/2 = toutes les 2 minutes)
-//    └─ Heures (* = toutes les heures)
-//       └─ Jour du mois (* = tous les jours)
-//          └─ Mois (* = tous les mois)
-//             └─ Jour de la semaine (* = tous les jours)
