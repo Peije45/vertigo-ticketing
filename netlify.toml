@@ -50,7 +50,3 @@
   to = "/.netlify/functions/admin-grant-access"
   status = 200
 
-[[redirects]]
-  from = "/api/webhook/discord-ticket"
-  to = "/.netlify/functions/webhook-discord-ticket"
-  status = 200
