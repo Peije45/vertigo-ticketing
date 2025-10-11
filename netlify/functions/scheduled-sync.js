@@ -281,7 +281,6 @@ const syncTickets = async () => {
             SET 
               status = 'resolu',
               closed_at = CURRENT_TIMESTAMP,
-              closed_by_user_id = NULL,
               updated_at = CURRENT_TIMESTAMP
             WHERE id = ${ticket.id}
           `;
