@@ -1,0 +1,21 @@
+{
+  "name": "vertigo-ticketing-dashboard",
+  "version": "1.0.0",
+  "description": "Dashboard Ticketing Discord pour Vertigo RP",
+  "main": "index.js",
+  "scripts": {
+    "dev": "netlify dev",
+    "build": "echo 'Build step'",
+    "deploy": "netlify deploy --prod",
+    "deploy:draft": "netlify deploy",
+    "functions": "netlify functions:list",
+    "logs": "netlify logs:function"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^0.9.0",
+    "node-fetch": "^2.7.0"
+  },
+  "devDependencies": {
+    "netlify-cli": "^17.0.0"
+  }
+}
