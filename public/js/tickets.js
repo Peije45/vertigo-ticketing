@@ -1,7 +1,8 @@
 // public/js/tickets.js
-// Gestion des tickets côté client - VERSION AVEC AUTO-REFRESH
+// Gestion des tickets côté client - VERSION AVEC AUTO-REFRESH ET ASSIGNATION FLEXIBLE
 
 let allTickets = [];
+let allStaffUsers = [];
 let currentFilters = {
   status: null,
   priority: null,
@@ -13,6 +14,27 @@ let currentFilters = {
 // Variables pour l'auto-refresh
 let autoRefreshInterval = null;
 const AUTO_REFRESH_DELAY = 120000; // 2 minutes en millisecondes
+
+// Charger la liste des utilisateurs staff
+async function loadStaffUsers() {
+  try {
+    const response = await fetch('/api/get-staff-users', {
+      credentials: 'include'
+    });
+    
+    if (response.ok) {
+      allStaffUsers = await response.json();
+      console.log(`✅ ${allStaffUsers.length} utilisateurs staff chargés`);
+      return allStaffUsers;
+    } else {
+      console.error('❌ Erreur chargement staff:', response.status);
+      return [];
+    }
+  } catch (error) {
+    console.error('❌ Erreur loadStaffUsers:', error);
+    return [];
+  }
+}
 
 // Charger les tickets depuis l'API
 async function loadTickets(silent = false) {
@@ -202,53 +224,203 @@ function displayTicketModal(ticket, messages) {
     `).join('');
   }
   
-  // Ajouter le bouton claim si le ticket n'est pas assigné
+  // Ajouter le bouton d'assignation si le ticket n'est pas assigné
   addClaimButton(ticket);
   
   // Afficher le modal
   modal.classList.add('active');
 }
 
-// Ajouter un bouton claim au modal
-function addClaimButton(ticket) {
+// Ajouter un bouton d'assignation au modal
+async function addClaimButton(ticket) {
   const modalHeader = document.querySelector('.modal-header');
   if (!modalHeader) return;
   
-  // Supprimer l'ancien bouton s'il existe
-  const existingBtn = modalHeader.querySelector('.claim-btn');
-  if (existingBtn) existingBtn.remove();
+  // Supprimer l'ancien conteneur d'assignation s'il existe
+  const existingContainer = modalHeader.querySelector('.assign-container');
+  if (existingContainer) existingContainer.remove();
   
-  // Ajouter le bouton claim seulement si le ticket n'est pas assigné
+  // Ajouter l'interface d'assignation seulement si le ticket n'est pas assigné
   if (!ticket.assigned_to_user_id && currentUser) {
-    const claimBtn = document.createElement('button');
-    claimBtn.className = 'btn btn-primary claim-btn';
-    claimBtn.textContent = '✋ Claim ce ticket';
-    claimBtn.style.marginLeft = 'auto';
-    claimBtn.style.marginRight = '1rem';
-    claimBtn.onclick = () => claimTicket(ticket.id);
+    // Récupérer la liste des utilisateurs staff (utiliser cache si déjà chargé)
+    if (allStaffUsers.length === 0) {
+      await loadStaffUsers();
+    }
+    const staffUsers = allStaffUsers;
+    
+    // Créer le conteneur d'assignation
+    const assignContainer = document.createElement('div');
+    assignContainer.className = 'assign-container';
+    assignContainer.style.cssText = 'display: flex; gap: 0.5rem; margin-left: auto; margin-right: 1rem; position: relative;';
+    
+    // Bouton principal "Assigner ce ticket"
+    const assignBtn = document.createElement('button');
+    assignBtn.className = 'btn btn-primary';
+    assignBtn.innerHTML = '✋ Assigner ce ticket ▼';
+    assignBtn.style.cssText = 'cursor: pointer;';
+    
+    // Menu déroulant des utilisateurs
+    const dropdown = document.createElement('div');
+    dropdown.className = 'assign-dropdown';
+    dropdown.style.cssText = `
+      display: none;
+      position: absolute;
+      top: 100%;
+      right: 0;
+      margin-top: 0.5rem;
+      background: var(--discord-dark);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 6px;
+      padding: 0.5rem 0;
+      min-width: 250px;
+      max-height: 400px;
+      overflow-y: auto;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      z-index: 1000;
+    `;
+    
+    // Option "M'assigner à moi"
+    const selfOption = document.createElement('div');
+    selfOption.className = 'assign-option';
+    selfOption.style.cssText = `
+      padding: 0.75rem 1rem;
+      cursor: pointer;
+      transition: background 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    `;
+    selfOption.innerHTML = `
+      <img src="${currentUser.discord_avatar_url || 'https://cdn.discordapp.com/embed/avatars/0.png'}" 
+           style="width: 32px; height: 32px; border-radius: 50%;" alt="Avatar">
+      <div>
+        <div style="font-weight: 600; color: var(--text-primary);">
+          ${escapeHtml(currentUser.discord_global_name || currentUser.discord_username)} (Moi)
+        </div>
+        <div style="font-size: 0.8rem; color: var(--text-secondary);">
+          M'assigner ce ticket
+        </div>
+      </div>
+    `;
+    selfOption.onmouseenter = () => selfOption.style.background = 'var(--discord-hover)';
+    selfOption.onmouseleave = () => selfOption.style.background = 'transparent';
+    selfOption.onclick = () => {
+      dropdown.style.display = 'none';
+      claimTicket(ticket.id, currentUser.id);
+    };
+    dropdown.appendChild(selfOption);
+    
+    // Options pour les autres utilisateurs staff
+    if (staffUsers && staffUsers.length > 0) {
+      // Ajouter un séparateur
+      const separator = document.createElement('div');
+      separator.style.cssText = 'padding: 0.5rem 1rem; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;';
+      separator.textContent = 'Assigner à un autre staff';
+      dropdown.appendChild(separator);
+      
+      // Ajouter chaque utilisateur
+      staffUsers.forEach(user => {
+        // Ne pas afficher l'utilisateur courant (déjà affiché en premier)
+        if (user.id === currentUser.id) return;
+        
+        const option = document.createElement('div');
+        option.className = 'assign-option';
+        option.style.cssText = `
+          padding: 0.75rem 1rem;
+          cursor: pointer;
+          transition: background 0.2s;
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+        `;
+        
+        // Déterminer le badge de rôle
+        let roleBadge = '';
+        if (user.roles && user.roles.length > 0) {
+          const roleEmojis = {
+            'fondateur': '👑',
+            'dev': '💻',
+            'admin': '⚡',
+            'modo': '🛡️',
+            'support': '🎯'
+          };
+          const primaryRole = user.roles[0];
+          const emoji = roleEmojis[primaryRole.role_name] || '👤';
+          roleBadge = `<span style="font-size: 0.7rem; padding: 0.15rem 0.4rem; background: var(--discord-light); border-radius: 4px; color: var(--text-secondary);">${emoji} ${primaryRole.role_name}</span>`;
+        }
+        
+        option.innerHTML = `
+          <img src="${user.discord_avatar_url || 'https://cdn.discordapp.com/embed/avatars/0.png'}" 
+               style="width: 32px; height: 32px; border-radius: 50%;" alt="Avatar">
+          <div style="flex: 1;">
+            <div style="font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem;">
+              ${escapeHtml(user.discord_global_name || user.discord_username)}
+              ${roleBadge}
+            </div>
+            <div style="font-size: 0.75rem; color: var(--text-muted);">
+              @${escapeHtml(user.discord_username)}
+            </div>
+          </div>
+        `;
+        option.onmouseenter = () => option.style.background = 'var(--discord-hover)';
+        option.onmouseleave = () => option.style.background = 'transparent';
+        option.onclick = () => {
+          dropdown.style.display = 'none';
+          claimTicket(ticket.id, user.id);
+        };
+        dropdown.appendChild(option);
+      });
+    }
+    
+    // Toggle du dropdown au clic sur le bouton
+    assignBtn.onclick = (e) => {
+      e.stopPropagation();
+      dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+    };
+    
+    // Fermer le dropdown au clic extérieur
+    const closeDropdown = (e) => {
+      if (!assignContainer.contains(e.target)) {
+        dropdown.style.display = 'none';
+      }
+    };
+    document.addEventListener('click', closeDropdown);
+    
+    assignContainer.appendChild(assignBtn);
+    assignContainer.appendChild(dropdown);
     
     const closeBtn = modalHeader.querySelector('.close-btn');
-    modalHeader.insertBefore(claimBtn, closeBtn);
+    modalHeader.insertBefore(assignContainer, closeBtn);
   }
 }
 
-// Claim un ticket
-async function claimTicket(ticketId) {
+// Claim un ticket (assignation)
+async function claimTicket(ticketId, userId) {
   try {
+    console.log(`🎯 Assignation du ticket ${ticketId} à l'utilisateur ${userId}`);
+    
     const response = await fetch('/api/claim-ticket', {
       method: 'POST',
       credentials: 'include',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ ticket_id: ticketId })
+      body: JSON.stringify({ 
+        ticket_id: ticketId,
+        user_id: userId
+      })
     });
     
     if (!response.ok) {
-      throw new Error('Erreur lors du claim');
+      throw new Error('Erreur lors de l\'assignation');
     }
     
     const data = await response.json();
+    
+    // Afficher le nom de l'utilisateur assigné
+    const assignedUser = allStaffUsers.find(u => u.id === userId) || currentUser;
+    const userName = assignedUser.discord_global_name || assignedUser.discord_username || 'l\'utilisateur';
     
     // Recharger les tickets
     await loadTickets();
@@ -256,7 +428,7 @@ async function claimTicket(ticketId) {
     // Fermer le modal
     closeTicketDetail();
     
-    showSuccess('Ticket assigné avec succès !');
+    showSuccess(`Ticket assigné avec succès à ${userName} !`);
     
   } catch (error) {
     console.error('Erreur claimTicket:', error);
