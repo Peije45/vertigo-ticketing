@@ -305,7 +305,7 @@ async function addClaimButton(ticket) {
     // Créer le conteneur d'assignation
     const assignContainer = document.createElement('div');
     assignContainer.className = 'assign-container';
-    assignContainer.style.cssText = 'display: flex; gap: 0.5rem; margin-left: auto; margin-right: 1rem; position: relative;';
+    assignContainer.style.cssText = 'display: flex; gap: 0.5rem; margin-left: auto; margin-right: 1rem; position: relative; align-items: center;';
     
     // Bouton principal "Assigner ce ticket" ou "Réassigner ce ticket"
     const assignBtn = document.createElement('button');
@@ -313,7 +313,7 @@ async function addClaimButton(ticket) {
     // Texte différent selon l'état d'assignation
     const btnText = ticket.assigned_to_user_id ? '🔄 Réassigner ce ticket ▼' : '✋ Assigner ce ticket ▼';
     assignBtn.innerHTML = btnText;
-    assignBtn.style.cssText = 'cursor: pointer;';
+    assignBtn.style.cssText = 'cursor: pointer; height: 36px; flex-shrink: 0; display: flex; align-items: center; white-space: nowrap;';
     
     // Menu déroulant des utilisateurs
     const dropdown = document.createElement('div');
@@ -494,6 +494,9 @@ function addDiscordButton(ticket) {
     font-size: 0.9rem;
     font-weight: 500;
     transition: background 0.2s;
+    height: 36px;
+    flex-shrink: 0;
+    white-space: nowrap;
   `;
   discordBtn.innerHTML = `
     <svg width="16" height="16" viewBox="0 0 71 55" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -683,6 +686,8 @@ function addPriorityDropdown(ticket) {
     font-size: 0.9rem;
     cursor: pointer;
     min-width: 140px;
+    height: 36px;
+    flex-shrink: 0;
   `;
   
   // Options du dropdown
