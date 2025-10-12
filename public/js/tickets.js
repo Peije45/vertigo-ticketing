@@ -278,7 +278,7 @@ function displayTicketModal(ticket, messages) {
   // Ajouter le bouton d'assignation si le ticket n'est pas assigné
   addClaimButton(ticket);
   
-  // Ajouter le bouton "Voir sur Discord"
+  // Ajouter le bouton "Voir sur Discord" avec gestion intelligente app/web
   addDiscordButton(ticket);
   
   // Afficher le modal
@@ -461,7 +461,7 @@ async function addClaimButton(ticket) {
   }
 }
 
-// Ajouter un bouton "Voir sur Discord" au modal
+// Ajouter un bouton "Voir sur Discord" au modal avec ouverture intelligente app/web
 function addDiscordButton(ticket) {
   const modalHeader = document.querySelector('.modal-header');
   if (!modalHeader) return;
@@ -473,23 +473,27 @@ function addDiscordButton(ticket) {
   // ID du serveur Discord (Vertigo RP)
   const DISCORD_SERVER_ID = '1288511254369013831';
   
-  // Construire l'URL Discord
-  const discordUrl = `https://discord.com/channels/${DISCORD_SERVER_ID}/${ticket.discord_channel_id}`;
+  // Construire les URLs Discord (app et web)
+  const discordAppUrl = `discord://discord.com/channels/${DISCORD_SERVER_ID}/${ticket.discord_channel_id}`;
+  const discordWebUrl = `https://discord.com/channels/${DISCORD_SERVER_ID}/${ticket.discord_channel_id}`;
   
   // Créer le bouton Discord
-  const discordBtn = document.createElement('a');
+  const discordBtn = document.createElement('button');
   discordBtn.className = 'btn discord-button';
-  discordBtn.href = discordUrl;
-  discordBtn.target = '_blank';
-  discordBtn.rel = 'noopener noreferrer';
   discordBtn.style.cssText = `
     background: #5865f2;
     color: white;
-    text-decoration: none;
+    border: none;
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
     margin-left: 0.5rem;
+    cursor: pointer;
+    padding: 0.65rem 1.25rem;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: background 0.2s;
   `;
   discordBtn.innerHTML = `
     <svg width="16" height="16" viewBox="0 0 71 55" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -504,6 +508,57 @@ function addDiscordButton(ticket) {
     </svg>
     Voir sur Discord
   `;
+  
+  // Gestion intelligente de l'ouverture : tenter l'app Discord d'abord, puis fallback vers le web
+  discordBtn.onclick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    console.log('🎮 Tentative d\'ouverture de Discord...');
+    
+    // Tenter d'ouvrir l'application Discord via un iframe invisible
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    iframe.src = discordAppUrl;
+    document.body.appendChild(iframe);
+    
+    // Fallback automatique vers le web après 1 seconde si l'app ne s'ouvre pas
+    const fallbackTimer = setTimeout(() => {
+      console.log('⏱️ Timeout atteint - Ouverture web en fallback');
+      window.open(discordWebUrl, '_blank', 'noopener,noreferrer');
+      
+      // Nettoyer l'iframe
+      if (document.body.contains(iframe)) {
+        document.body.removeChild(iframe);
+      }
+    }, 1000);
+    
+    // Si la fenêtre perd le focus (= l'app Discord s'est ouverte), annuler le fallback
+    const blurHandler = () => {
+      console.log('✅ Application Discord ouverte - Annulation du fallback');
+      clearTimeout(fallbackTimer);
+      
+      // Nettoyer l'iframe après un court délai
+      setTimeout(() => {
+        if (document.body.contains(iframe)) {
+          document.body.removeChild(iframe);
+        }
+      }, 100);
+      
+      // Retirer ce listener après usage
+      window.removeEventListener('blur', blurHandler);
+    };
+    
+    window.addEventListener('blur', blurHandler);
+    
+    // Nettoyer après 2 secondes dans tous les cas (sécurité)
+    setTimeout(() => {
+      if (document.body.contains(iframe)) {
+        document.body.removeChild(iframe);
+      }
+      window.removeEventListener('blur', blurHandler);
+    }, 2000);
+  };
   
   // Ajouter le hover effect
   discordBtn.onmouseenter = () => discordBtn.style.background = '#4752c4';
