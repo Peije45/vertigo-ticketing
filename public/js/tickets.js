@@ -291,8 +291,8 @@ async function addClaimButton(ticket) {
   const existingContainer = modalHeader.querySelector('.assign-container');
   if (existingContainer) existingContainer.remove();
   
-  // Ajouter l'interface d'assignation seulement si le ticket n'est pas assigné et pas résolu
-  if (!ticket.assigned_to_user_id && ticket.status !== 'resolu' && currentUser) {
+  // Ajouter l'interface d'assignation (sauf si ticket résolu)
+  if (ticket.status !== 'resolu' && currentUser) {
     // Récupérer la liste des utilisateurs staff (utiliser cache si déjà chargé)
     if (allStaffUsers.length === 0) {
       await loadStaffUsers();
@@ -304,10 +304,12 @@ async function addClaimButton(ticket) {
     assignContainer.className = 'assign-container';
     assignContainer.style.cssText = 'display: flex; gap: 0.5rem; margin-left: auto; margin-right: 1rem; position: relative;';
     
-    // Bouton principal "Assigner ce ticket"
+    // Bouton principal "Assigner ce ticket" ou "Réassigner ce ticket"
     const assignBtn = document.createElement('button');
     assignBtn.className = 'btn btn-primary';
-    assignBtn.innerHTML = '✋ Assigner ce ticket ▼';
+    // Texte différent selon l'état d'assignation
+    const btnText = ticket.assigned_to_user_id ? '🔄 Réassigner ce ticket ▼' : '✋ Assigner ce ticket ▼';
+    assignBtn.innerHTML = btnText;
     assignBtn.style.cssText = 'cursor: pointer;';
     
     // Menu déroulant des utilisateurs
@@ -342,15 +344,20 @@ async function addClaimButton(ticket) {
       gap: 0.75rem;
       border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     `;
+    
+    // Vérifier si l'utilisateur courant est déjà assigné
+    const isCurrentlyAssigned = ticket.assigned_to_user_id === currentUser.id;
+    const checkmark = isCurrentlyAssigned ? '✅ ' : '';
+    
     selfOption.innerHTML = `
       <img src="${currentUser.discord_avatar_url || 'https://cdn.discordapp.com/embed/avatars/0.png'}" 
            style="width: 32px; height: 32px; border-radius: 50%;" alt="Avatar">
-      <div>
+      <div style="flex: 1;">
         <div style="font-weight: 600; color: var(--text-primary);">
-          ${escapeHtml(currentUser.discord_global_name || currentUser.discord_username)} (Moi)
+          ${checkmark}${escapeHtml(currentUser.discord_global_name || currentUser.discord_username)} (Moi)
         </div>
         <div style="font-size: 0.8rem; color: var(--text-secondary);">
-          M'assigner ce ticket
+          ${isCurrentlyAssigned ? 'Actuellement assigné' : 'M\'assigner ce ticket'}
         </div>
       </div>
     `;
@@ -367,13 +374,18 @@ async function addClaimButton(ticket) {
       // Ajouter un séparateur
       const separator = document.createElement('div');
       separator.style.cssText = 'padding: 0.5rem 1rem; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;';
-      separator.textContent = 'Assigner à un autre staff';
+      const separatorText = ticket.assigned_to_user_id ? 'Réassigner à un autre staff' : 'Assigner à un autre staff';
+      separator.textContent = separatorText;
       dropdown.appendChild(separator);
       
       // Ajouter chaque utilisateur
       staffUsers.forEach(user => {
         // Ne pas afficher l'utilisateur courant (déjà affiché en premier)
         if (user.id === currentUser.id) return;
+        
+        // Vérifier si cet utilisateur est actuellement assigné
+        const isAssigned = ticket.assigned_to_user_id === user.id;
+        const checkmark = isAssigned ? '✅ ' : '';
         
         const option = document.createElement('div');
         option.className = 'assign-option';
@@ -406,11 +418,11 @@ async function addClaimButton(ticket) {
                style="width: 32px; height: 32px; border-radius: 50%;" alt="Avatar">
           <div style="flex: 1;">
             <div style="font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem;">
-              ${escapeHtml(user.discord_global_name || user.discord_username)}
+              ${checkmark}${escapeHtml(user.discord_global_name || user.discord_username)}
               ${roleBadge}
             </div>
             <div style="font-size: 0.75rem; color: var(--text-muted);">
-              @${escapeHtml(user.discord_username)}
+              ${isAssigned ? 'Actuellement assigné' : '@' + escapeHtml(user.discord_username)}
             </div>
           </div>
         `;
