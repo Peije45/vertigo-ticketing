@@ -1,6 +1,7 @@
 // netlify/functions/scheduled-sync.js
 // Synchronisation automatique COMPLÈTE des tickets toutes les X minutes
 // ✅ INCLUT : Détection et clôture des tickets disparus de Discord
+// ✅ MODIFIÉ : Ne touche plus aux colonnes is_unread/unread_count/has_new_messages (gérées par utilisateur)
 
 const { neon } = require('@neondatabase/serverless');
 const { schedule } = require('@netlify/functions');
@@ -60,7 +61,6 @@ const syncTickets = async () => {
       SELECT 
         discord_channel_id, 
         id, 
-        unread_count, 
         assigned_to_user_id,
         status,
         title,
@@ -152,6 +152,7 @@ const syncTickets = async () => {
         // Date de création (à partir du snowflake Discord)
         const createdAt = new Date((parseInt(channel.id) / 4194304) + 1420070400000).toISOString();
         
+        // ✅ MODIFIÉ : Ne plus initialiser is_unread/unread_count/has_new_messages
         // Créer le ticket dans la BDD
         const ticketResult = await sql`
           INSERT INTO tickets (
@@ -167,8 +168,6 @@ const syncTickets = async () => {
             assigned_to_user_id,
             assigned_at,
             assigned_by_user_id,
-            is_unread,
-            unread_count,
             created_at,
             last_message_at
           ) VALUES (
@@ -184,8 +183,6 @@ const syncTickets = async () => {
             ${assignedUserId},
             ${assignedUserId ? new Date().toISOString() : null},
             ${assignedUserId},
-            true,
-            ${messages.length},
             ${createdAt},
             ${messages.length > 0 ? new Date(messages[0].timestamp).toISOString() : createdAt}
           )
@@ -549,14 +546,13 @@ const syncTickets = async () => {
           }
         }
         
-        // Mettre à jour le ticket si nouveaux messages
+        // ✅ MODIFIÉ : Ne plus mettre à jour is_unread/unread_count/has_new_messages
+        // Ces informations sont maintenant gérées par utilisateur via ticket_read_status
+        // Mettre à jour seulement last_message_at si nouveaux messages
         if (newMessages.length > 0) {
           await sql`
             UPDATE tickets 
             SET 
-              is_unread = true,
-              unread_count = unread_count + ${newMessages.length},
-              has_new_messages = true,
               last_message_at = ${new Date(newMessages[0].timestamp).toISOString()},
               updated_at = CURRENT_TIMESTAMP
             WHERE id = ${ticket.id}
