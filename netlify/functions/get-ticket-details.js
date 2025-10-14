@@ -79,13 +79,31 @@ exports.handler = async (event, context) => {
       ORDER BY created_at ASC
     `;
     
-    // Marquer le ticket comme lu (optionnel)
+    const userId = sessions[0].user_id;
+    
+    // Récupérer le dernier message pour enregistrer le last_read_message_id
+    const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
+    
+    // Marquer le ticket comme lu pour l'utilisateur connecté uniquement
     await sql`
-      UPDATE tickets 
-      SET is_unread = false, 
-          unread_count = 0,
-          has_new_messages = false
-      WHERE id = ${ticketId}
+      INSERT INTO ticket_read_status (
+        ticket_id,
+        user_id,
+        last_read_at,
+        last_read_message_id,
+        updated_at
+      ) VALUES (
+        ${ticketId},
+        ${userId},
+        CURRENT_TIMESTAMP,
+        ${lastMessage ? lastMessage.discord_message_id : null},
+        CURRENT_TIMESTAMP
+      )
+      ON CONFLICT (ticket_id, user_id) 
+      DO UPDATE SET
+        last_read_at = CURRENT_TIMESTAMP,
+        last_read_message_id = ${lastMessage ? lastMessage.discord_message_id : null},
+        updated_at = CURRENT_TIMESTAMP
     `;
     
     return {
