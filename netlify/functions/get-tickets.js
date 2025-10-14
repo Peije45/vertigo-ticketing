@@ -100,7 +100,7 @@ exports.handler = async (event, context) => {
       ? 'WHERE ' + whereConditions.join(' AND ')
       : '';
     
-    // Requête SQL complète avec les filtres dynamiques
+    // Requête SQL complète avec les filtres dynamiques et statut de lecture par utilisateur
     const query = `
       SELECT 
         t.*,
@@ -109,24 +109,56 @@ exports.handler = async (event, context) => {
         c.color as category_color,
         u.discord_username as assigned_to_username,
         u.discord_avatar_url as assigned_to_avatar,
-        u.discord_global_name as assigned_to_display_name
+        u.discord_global_name as assigned_to_display_name,
+        -- Calculer le statut de lecture par utilisateur
+        COALESCE(trs.last_read_at, '1970-01-01'::timestamp) as user_last_read_at,
+        -- Compter les messages non lus par utilisateur (messages postés après last_read_at)
+        (
+          SELECT COUNT(*)
+          FROM ticket_messages tm
+          WHERE tm.ticket_id = t.id
+            AND tm.deleted_at IS NULL
+            AND tm.created_at > COALESCE(trs.last_read_at, '1970-01-01'::timestamp)
+        ) as unread_count,
+        -- Déterminer si le ticket a des messages non lus pour cet utilisateur
+        CASE 
+          WHEN EXISTS (
+            SELECT 1 
+            FROM ticket_messages tm
+            WHERE tm.ticket_id = t.id
+              AND tm.deleted_at IS NULL
+              AND tm.created_at > COALESCE(trs.last_read_at, '1970-01-01'::timestamp)
+          ) THEN true
+          ELSE false
+        END as is_unread
       FROM tickets t
       LEFT JOIN categories c ON c.id = t.category_id
       LEFT JOIN users u ON u.id = t.assigned_to_user_id
+      LEFT JOIN ticket_read_status trs ON trs.ticket_id = t.id AND trs.user_id = $${whereParams.length + 1}
       ${whereClause}
       ORDER BY 
-        CASE WHEN t.is_unread THEN 0 ELSE 1 END,
+        -- Prioriser les tickets non lus par l'utilisateur connecté
+        CASE 
+          WHEN EXISTS (
+            SELECT 1 
+            FROM ticket_messages tm
+            WHERE tm.ticket_id = t.id
+              AND tm.deleted_at IS NULL
+              AND tm.created_at > COALESCE(trs.last_read_at, '1970-01-01'::timestamp)
+          ) THEN 0 
+          ELSE 1 
+        END,
         CASE t.priority 
           WHEN 'haute' THEN 1 
           WHEN 'moyenne' THEN 2 
           WHEN 'basse' THEN 3 
         END,
         t.created_at DESC
-      LIMIT $${whereParams.length + 1} OFFSET $${whereParams.length + 2}
+      LIMIT $${whereParams.length + 2} OFFSET $${whereParams.length + 3}
     `;
     
-    // Ajouter limit et offset aux paramètres
-    whereParams.push(parseInt(limit), parseInt(offset));
+    // Ajouter userId, limit et offset aux paramètres
+    whereParams.push(userId, parseInt(limit), parseInt(offset));
     
     // Exécuter la requête avec les paramètres
     const tickets = await sql(query, whereParams);
