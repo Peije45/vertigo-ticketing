@@ -112,17 +112,13 @@ exports.handler = async (event, context) => {
         u.discord_global_name as assigned_to_display_name,
         -- Calculer le statut de lecture par utilisateur
         COALESCE(trs.last_read_at, '1970-01-01'::timestamp) as user_last_read_at,
-        trs.last_read_message_id,
-        -- Compter les messages non lus par utilisateur (messages avec ID > last_read_message_id)
+        -- Compter les messages non lus par utilisateur (messages postés après last_read_at)
         (
           SELECT COUNT(*)
           FROM ticket_messages tm
           WHERE tm.ticket_id = t.id
             AND tm.deleted_at IS NULL
-            AND (
-              trs.last_read_message_id IS NULL 
-              OR tm.discord_message_id::numeric > trs.last_read_message_id::numeric
-            )
+            AND tm.created_at > COALESCE(trs.last_read_at, '1970-01-01'::timestamp)
         ) as unread_count,
         -- Déterminer si le ticket a des messages non lus pour cet utilisateur
         CASE 
@@ -131,10 +127,7 @@ exports.handler = async (event, context) => {
             FROM ticket_messages tm
             WHERE tm.ticket_id = t.id
               AND tm.deleted_at IS NULL
-              AND (
-                trs.last_read_message_id IS NULL 
-                OR tm.discord_message_id::numeric > trs.last_read_message_id::numeric
-              )
+              AND tm.created_at > COALESCE(trs.last_read_at, '1970-01-01'::timestamp)
           ) THEN true
           ELSE false
         END as is_unread
@@ -151,10 +144,7 @@ exports.handler = async (event, context) => {
             FROM ticket_messages tm
             WHERE tm.ticket_id = t.id
               AND tm.deleted_at IS NULL
-              AND (
-                trs.last_read_message_id IS NULL 
-                OR tm.discord_message_id::numeric > trs.last_read_message_id::numeric
-              )
+              AND tm.created_at > COALESCE(trs.last_read_at, '1970-01-01'::timestamp)
           ) THEN 0 
           ELSE 1 
         END,
@@ -173,12 +163,15 @@ exports.handler = async (event, context) => {
     // Exécuter la requête avec les paramètres
     const tickets = await sql(query, whereParams);
     
-    // Récupérer les statistiques
+    // ✅ FIX : Récupérer les statistiques GLOBALES (sans filtre)
+    // Incluant les counts totaux de tickets actifs et résolus
     const stats = await sql`
       SELECT 
         COUNT(*) FILTER (WHERE priority = 'haute' AND status != 'resolu') as urgent_count,
         COUNT(*) FILTER (WHERE status = 'en_cours') as pending_count,
         COUNT(*) FILTER (WHERE status = 'resolu' AND created_at > CURRENT_TIMESTAMP - INTERVAL '7 days') as resolved_7d_count,
+        COUNT(*) FILTER (WHERE status != 'resolu') as active_count,
+        COUNT(*) FILTER (WHERE status = 'resolu') as resolved_count,
         COALESCE(
           EXTRACT(EPOCH FROM AVG(closed_at - created_at)) / 3600,
           0
