@@ -96,7 +96,7 @@ async function loadTickets(silent = false) {
     // Mettre à jour l'affichage
     displayTickets(allTickets);
     updateStats(data.stats);
-    updateTabBadges(data.tickets);
+    updateTabBadges(data.stats);
     
     if (!silent) {
       console.log(`✅ ${allTickets.length} tickets chargés (onglet: ${currentTab})`);
@@ -110,16 +110,19 @@ async function loadTickets(silent = false) {
   }
 }
 
-// Mettre à jour les badges des onglets
-function updateTabBadges(allTicketsData) {
-  const activeCount = allTicketsData.filter(t => t.status !== 'resolu').length;
-  const resolvedCount = allTicketsData.filter(t => t.status === 'resolu').length;
+// Mettre à jour les badges des onglets - VERSION CORRIGÉE
+function updateTabBadges(stats) {
+  // ✅ FIX : Utiliser les stats globales du serveur au lieu de compter manuellement
+  const activeCount = stats.active_count || 0;
+  const resolvedCount = stats.resolved_count || 0;
   
   const activeBadge = document.getElementById('activeTabBadge');
   const resolvedBadge = document.getElementById('resolvedTabBadge');
   
   if (activeBadge) activeBadge.textContent = activeCount;
   if (resolvedBadge) resolvedBadge.textContent = resolvedCount;
+  
+  console.log(`📊 Badges mis à jour - Actifs: ${activeCount}, Résolus: ${resolvedCount}`);
 }
 
 // Afficher les tickets dans le DOM
