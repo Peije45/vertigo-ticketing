@@ -57,6 +57,11 @@ async function loadTickets(silent = false) {
     if (!silent) {
       console.log('📥 Chargement des tickets...');
     }
+
+    // Si on est sur l'onglet Archives, appeler la fonction spécifique
+    if (currentTab === 'archived') {
+      return await loadArchivedTickets(silent);
+    }
     
     // Construire l'URL avec les filtres
     const params = new URLSearchParams();
@@ -109,8 +114,59 @@ async function loadTickets(silent = false) {
   }
 }
 
-// Mettre à jour les badges des onglets
+// Charger les tickets archivés
+async function loadArchivedTickets(silent = false) {
+  try {
+    if (!silent) {
+      console.log('📦 Chargement des tickets archivés...');
+    }
+    
+    // Construire l'URL avec les filtres
+    const params = new URLSearchParams();
+    
+    // Ajouter les filtres
+    if (currentFilters.category_id) {
+      params.append('category_id', currentFilters.category_id);
+    }
+    if (currentFilters.search) {
+      params.append('search', currentFilters.search);
+    }
+    
+    const response = await fetch(`/api/get-archived-tickets?${params.toString()}`, {
+      credentials: 'include'
+    });
+    
+    if (!response.ok) {
+      throw new Error('Erreur chargement tickets archivés');
+    }
+    
+    const data = await response.json();
+    allTickets = data.tickets;
+    
+    // Mettre à jour l'affichage
+    displayTickets(allTickets);
+    
+    // Mettre à jour le badge de l'onglet Archives
+    const archivedBadge = document.getElementById('archivedTabBadge');
+    if (archivedBadge) {
+      archivedBadge.textContent = data.stats.total_archived || 0;
+    }
+    
+    if (!silent) {
+      console.log(`✅ ${allTickets.length} tickets archivés chargés`);
+    }
+    
+  } catch (error) {
+    console.error('Erreur loadArchivedTickets:', error);
+    if (!silent) {
+      showError('Impossible de charger les tickets archivés');
+    }
+  }
+}
+
+// Mettre à jour les badges des onglets - VERSION CORRIGÉE
 function updateTabBadges(stats) {
+  // ✅ FIX : Utiliser les stats globales du serveur au lieu de compter manuellement
   const activeCount = stats.active_count || 0;
   const resolvedCount = stats.resolved_count || 0;
   
@@ -121,6 +177,28 @@ function updateTabBadges(stats) {
   if (resolvedBadge) resolvedBadge.textContent = resolvedCount;
   
   console.log(`📊 Badges mis à jour - Actifs: ${activeCount}, Résolus: ${resolvedCount}`);
+  
+  // Charger le nombre d'archives (sans bloquer)
+  loadArchivedCount();
+}
+
+// Charger le nombre de tickets archivés pour le badge
+async function loadArchivedCount() {
+  try {
+    const response = await fetch('/api/get-archived-tickets?limit=1', {
+      credentials: 'include'
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      const archivedBadge = document.getElementById('archivedTabBadge');
+      if (archivedBadge) {
+        archivedBadge.textContent = data.stats.total_archived || 0;
+      }
+    }
+  } catch (error) {
+    console.error('Erreur loadArchivedCount:', error);
+  }
 }
 
 // Afficher les tickets dans le DOM
@@ -129,9 +207,14 @@ function displayTickets(tickets) {
   if (!container) return;
   
   if (tickets.length === 0) {
-    const emptyMessage = currentTab === 'active' 
-      ? 'Aucun ticket actif trouvé' 
-      : 'Aucun ticket résolu trouvé';
+    let emptyMessage = 'Aucun ticket trouvé';
+    if (currentTab === 'active') {
+      emptyMessage = 'Aucun ticket actif trouvé';
+    } else if (currentTab === 'resolved') {
+      emptyMessage = 'Aucun ticket résolu trouvé';
+    } else if (currentTab === 'archived') {
+      emptyMessage = 'Aucun ticket archivé trouvé';
+    }
     
     container.innerHTML = `
       <div style="
