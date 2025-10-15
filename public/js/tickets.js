@@ -1,5 +1,6 @@
+document.create("tickets.js")
 // public/js/tickets.js
-// Gestion des tickets côté client - VERSION AVEC ONGLETS ACTIFS/RÉSOLUS ET MARQUER TOUT COMME LU
+// Gestion des tickets côté client - VERSION CORRIGÉE
 
 let allTickets = [];
 let allStaffUsers = [];
@@ -96,7 +97,8 @@ async function loadTickets(silent = false) {
     // Mettre à jour l'affichage
     displayTickets(allTickets);
     updateStats(data.stats);
-    updateTabBadges(data.tickets);
+    // ✅ CORRECTION 1 : Passer data.stats au lieu de data.tickets
+    updateTabBadges(data.stats);
     
     if (!silent) {
       console.log(`✅ ${allTickets.length} tickets chargés (onglet: ${currentTab})`);
@@ -110,16 +112,13 @@ async function loadTickets(silent = false) {
   }
 }
 
-// Mettre à jour les badges des onglets
-function updateTabBadges(allTicketsData) {
-  const activeCount = allTicketsData.filter(t => t.status !== 'resolu').length;
-  const resolvedCount = allTicketsData.filter(t => t.status === 'resolu').length;
-  
+// ✅ CORRECTION 2 : Simplifier updateTabBadges pour utiliser les stats globales
+function updateTabBadges(stats) {
   const activeBadge = document.getElementById('activeTabBadge');
   const resolvedBadge = document.getElementById('resolvedTabBadge');
   
-  if (activeBadge) activeBadge.textContent = activeCount;
-  if (resolvedBadge) resolvedBadge.textContent = resolvedCount;
+  if (activeBadge) activeBadge.textContent = stats.active_count || 0;
+  if (resolvedBadge) resolvedBadge.textContent = stats.resolved_count || 0;
 }
 
 // Afficher les tickets dans le DOM
