@@ -1,10 +1,10 @@
-document.create("tickets.js")
 // public/js/tickets.js
 // Gestion des tickets côté client - VERSION CORRIGÉE
 
 let allTickets = [];
 let allStaffUsers = [];
-let currentTab = 'active'; // Onglet actif par défaut
+let currentUser = null; // ✅ AJOUT : Définir currentUser
+let currentTab = 'active';
 let currentFilters = {
   status: null,
   priority: null,
@@ -13,25 +13,15 @@ let currentFilters = {
   search: null
 };
 
-// Variables pour l'auto-refresh
-let autoRefreshInterval = null;
-const AUTO_REFRESH_DELAY = 120000; // 2 minutes en millisecondes
+const AUTO_REFRESH_DELAY = 120000; // 2 minutes
 
-// Changer d'onglet
 function switchTab(tabName) {
   currentTab = tabName;
-  
-  // Mettre à jour l'UI des onglets
-  document.querySelectorAll('.tab').forEach(tab => {
-    tab.classList.remove('active');
-  });
+  document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
   document.querySelector(`.tab[data-tab="${tabName}"]`).classList.add('active');
-  
-  // Recharger les tickets avec le filtre approprié
   loadTickets();
 }
 
-// Charger la liste des utilisateurs staff
 async function loadStaffUsers() {
   try {
     const response = await fetch('/api/get-staff-users', {
@@ -52,25 +42,18 @@ async function loadStaffUsers() {
   }
 }
 
-// Charger les tickets depuis l'API
 async function loadTickets(silent = false) {
   try {
     if (!silent) {
       console.log('📥 Chargement des tickets...');
     }
     
-    // Construire l'URL avec les filtres
     const params = new URLSearchParams();
     
-    // Ajouter le filtre de statut selon l'onglet actif
-    if (currentTab === 'active') {
-      // Ne pas ajouter de filtre de statut, mais exclure les résolus côté serveur
-      // On va filtrer côté client pour plus de flexibilité
-    } else if (currentTab === 'resolved') {
+    if (currentTab === 'resolved') {
       params.append('status', 'resolu');
     }
     
-    // Ajouter les autres filtres
     Object.keys(currentFilters).forEach(key => {
       if (currentFilters[key] && key !== 'status') {
         params.append(key, currentFilters[key]);
@@ -87,18 +70,15 @@ async function loadTickets(silent = false) {
     
     const data = await response.json();
     
-    // Filtrer les tickets selon l'onglet
     if (currentTab === 'active') {
       allTickets = data.tickets.filter(t => t.status !== 'resolu');
     } else {
       allTickets = data.tickets;
     }
     
-    // Mettre à jour l'affichage
     displayTickets(allTickets);
     updateStats(data.stats);
-    // ✅ CORRECTION 1 : Passer data.stats au lieu de data.tickets
-    updateTabBadges(data.stats);
+    updateTabBadges(data.stats); // ✅ CORRECTION 1
     
     if (!silent) {
       console.log(`✅ ${allTickets.length} tickets chargés (onglet: ${currentTab})`);
@@ -112,7 +92,7 @@ async function loadTickets(silent = false) {
   }
 }
 
-// ✅ CORRECTION 2 : Simplifier updateTabBadges pour utiliser les stats globales
+// ✅ CORRECTION 2 : Simplifier pour utiliser les stats globales
 function updateTabBadges(stats) {
   const activeBadge = document.getElementById('activeTabBadge');
   const resolvedBadge = document.getElementById('resolvedTabBadge');
@@ -121,7 +101,6 @@ function updateTabBadges(stats) {
   if (resolvedBadge) resolvedBadge.textContent = stats.resolved_count || 0;
 }
 
-// Afficher les tickets dans le DOM
 function displayTickets(tickets) {
   const container = document.querySelector('.tickets-grid');
   if (!container) return;
@@ -132,11 +111,7 @@ function displayTickets(tickets) {
       : 'Aucun ticket résolu trouvé';
     
     container.innerHTML = `
-      <div style="
-        text-align: center;
-        padding: 4rem 2rem;
-        color: #b5bac1;
-      ">
+      <div style="text-align: center; padding: 4rem 2rem; color: #b5bac1;">
         <div style="font-size: 3rem; margin-bottom: 1rem;">📭</div>
         <h3 style="font-size: 1.2rem; margin-bottom: 0.5rem;">${emptyMessage}</h3>
         <p>Essayez de modifier vos filtres de recherche</p>
@@ -148,7 +123,6 @@ function displayTickets(tickets) {
   container.innerHTML = tickets.map(ticket => createTicketCard(ticket)).join('');
 }
 
-// Créer une carte de ticket
 function createTicketCard(ticket) {
   const isUnread = ticket.is_unread ? 'unread' : '';
   const notificationBadge = ticket.unread_count > 0 
@@ -201,7 +175,6 @@ function createTicketCard(ticket) {
   `;
 }
 
-// Obtenir le badge de statut
 function getStatusBadge(status) {
   const badges = {
     'nouveau': '<span class="badge new">NEW</span>',
@@ -212,7 +185,6 @@ function getStatusBadge(status) {
   return badges[status] || '';
 }
 
-// Obtenir l'indicateur de priorité
 function getPriorityIndicator(priority) {
   const indicators = {
     'haute': '<span class="priority-indicator priority-high"></span>',
@@ -222,9 +194,7 @@ function getPriorityIndicator(priority) {
   return indicators[priority] || '<span class="priority-indicator" style="background: var(--text-muted);"></span>';
 }
 
-// Marquer tous les tickets comme lus
 async function markAllAsRead() {
-  // Confirmation
   if (!confirm('Voulez-vous vraiment marquer tous les tickets comme lus ?')) {
     return;
   }
@@ -249,7 +219,6 @@ async function markAllAsRead() {
     console.log(`✅ ${data.tickets_marked} tickets marqués comme lus`);
     showSuccess(data.message || 'Tous les tickets ont été marqués comme lus !');
     
-    // Recharger les tickets pour mettre à jour l'affichage
     await loadTickets();
     
   } catch (error) {
@@ -258,7 +227,6 @@ async function markAllAsRead() {
   }
 }
 
-// Ouvrir le détail d'un ticket
 async function openTicketDetail(ticketId) {
   try {
     const response = await fetch(`/api/get-ticket-details?ticket_id=${ticketId}`, {
@@ -278,19 +246,16 @@ async function openTicketDetail(ticketId) {
   }
 }
 
-// Afficher le modal de détail du ticket
 function displayTicketModal(ticket, messages) {
   const modal = document.getElementById('ticketModal');
   if (!modal) return;
   
-  // Mettre à jour le header du modal
   const titleElement = modal.querySelector('.ticket-title');
   const idElement = modal.querySelector('.ticket-id');
   
   if (titleElement) titleElement.textContent = ticket.title;
   if (idElement) idElement.textContent = `#${ticket.discord_channel_id}`;
   
-  // Mettre à jour les messages
   const messagesContainer = modal.querySelector('.message-thread');
   if (messagesContainer) {
     messagesContainer.innerHTML = messages.map(msg => `
@@ -307,50 +272,36 @@ function displayTicketModal(ticket, messages) {
     `).join('');
   }
   
-  // Ajouter le dropdown de priorité
   addPriorityDropdown(ticket);
-  
-  // Ajouter le bouton d'assignation si le ticket n'est pas assigné
   addClaimButton(ticket);
-  
-  // Ajouter le bouton "Voir sur Discord" avec gestion intelligente app/web
   addDiscordButton(ticket);
   
-  // Afficher le modal
   modal.classList.add('active');
 }
 
-// Ajouter un bouton d'assignation au modal
 async function addClaimButton(ticket) {
   const modalHeader = document.querySelector('.modal-header');
   if (!modalHeader) return;
   
-  // Supprimer l'ancien conteneur d'assignation s'il existe
   const existingContainer = modalHeader.querySelector('.assign-container');
   if (existingContainer) existingContainer.remove();
   
-  // Ajouter l'interface d'assignation (sauf si ticket résolu)
   if (ticket.status !== 'resolu' && currentUser) {
-    // Récupérer la liste des utilisateurs staff (utiliser cache si déjà chargé)
     if (allStaffUsers.length === 0) {
       await loadStaffUsers();
     }
     const staffUsers = allStaffUsers;
     
-    // Créer le conteneur d'assignation
     const assignContainer = document.createElement('div');
     assignContainer.className = 'assign-container';
     assignContainer.style.cssText = 'display: flex; gap: 0.5rem; margin-left: auto; margin-right: 1rem; position: relative; align-items: center;';
     
-    // Bouton principal "Assigner ce ticket" ou "Réassigner ce ticket"
     const assignBtn = document.createElement('button');
     assignBtn.className = 'btn btn-primary';
-    // Texte différent selon l'état d'assignation
     const btnText = ticket.assigned_to_user_id ? '🔄 Réassigner ce ticket ▼' : '✋ Assigner ce ticket ▼';
     assignBtn.innerHTML = btnText;
     assignBtn.style.cssText = 'cursor: pointer; height: 36px; flex-shrink: 0; display: flex; align-items: center; white-space: nowrap;';
     
-    // Menu déroulant des utilisateurs
     const dropdown = document.createElement('div');
     dropdown.className = 'assign-dropdown';
     dropdown.style.cssText = `
@@ -370,7 +321,6 @@ async function addClaimButton(ticket) {
       z-index: 1000;
     `;
     
-    // Option "M'assigner à moi"
     const selfOption = document.createElement('div');
     selfOption.className = 'assign-option';
     selfOption.style.cssText = `
@@ -383,7 +333,6 @@ async function addClaimButton(ticket) {
       border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     `;
     
-    // Vérifier si l'utilisateur courant est déjà assigné
     const isCurrentlyAssigned = ticket.assigned_to_user_id === currentUser.id;
     const checkmark = isCurrentlyAssigned ? '✅ ' : '';
     
@@ -407,21 +356,16 @@ async function addClaimButton(ticket) {
     };
     dropdown.appendChild(selfOption);
     
-    // Options pour les autres utilisateurs staff
     if (staffUsers && staffUsers.length > 0) {
-      // Ajouter un séparateur
       const separator = document.createElement('div');
       separator.style.cssText = 'padding: 0.5rem 1rem; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;';
       const separatorText = ticket.assigned_to_user_id ? 'Réassigner à un autre staff' : 'Assigner à un autre staff';
       separator.textContent = separatorText;
       dropdown.appendChild(separator);
       
-      // Ajouter chaque utilisateur
       staffUsers.forEach(user => {
-        // Ne pas afficher l'utilisateur courant (déjà affiché en premier)
         if (user.id === currentUser.id) return;
         
-        // Vérifier si cet utilisateur est actuellement assigné
         const isAssigned = ticket.assigned_to_user_id === user.id;
         const checkmark = isAssigned ? '✅ ' : '';
         
@@ -436,7 +380,6 @@ async function addClaimButton(ticket) {
           gap: 0.75rem;
         `;
         
-        // Déterminer le badge de rôle
         let roleBadge = '';
         if (user.roles && user.roles.length > 0) {
           const roleEmojis = {
@@ -474,13 +417,11 @@ async function addClaimButton(ticket) {
       });
     }
     
-    // Toggle du dropdown au clic sur le bouton
     assignBtn.onclick = (e) => {
       e.stopPropagation();
       dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
     };
     
-    // Fermer le dropdown au clic extérieur
     const closeDropdown = (e) => {
       if (!assignContainer.contains(e.target)) {
         dropdown.style.display = 'none';
@@ -496,23 +437,18 @@ async function addClaimButton(ticket) {
   }
 }
 
-// Ajouter un bouton "Voir sur Discord" au modal avec ouverture intelligente app/web
 function addDiscordButton(ticket) {
   const modalHeader = document.querySelector('.modal-header');
   if (!modalHeader) return;
   
-  // Supprimer l'ancien bouton Discord s'il existe
   const existingBtn = modalHeader.querySelector('.discord-button');
   if (existingBtn) existingBtn.remove();
   
-  // ID du serveur Discord (Vertigo RP)
   const DISCORD_SERVER_ID = '1288511254369013831';
   
-  // Construire les URLs Discord (app et web)
   const discordAppUrl = `discord://discord.com/channels/${DISCORD_SERVER_ID}/${ticket.discord_channel_id}`;
   const discordWebUrl = `https://discord.com/channels/${DISCORD_SERVER_ID}/${ticket.discord_channel_id}`;
   
-  // Créer le bouton Discord
   const discordBtn = document.createElement('button');
   discordBtn.className = 'btn discord-button';
   discordBtn.style.cssText = `
@@ -547,49 +483,34 @@ function addDiscordButton(ticket) {
     Voir sur Discord
   `;
   
-  // Gestion intelligente de l'ouverture : tenter l'app Discord d'abord, puis fallback vers le web
   discordBtn.onclick = (e) => {
     e.preventDefault();
     e.stopPropagation();
     
-    console.log('🎮 Tentative d\'ouverture de Discord...');
-    
-    // Tenter d'ouvrir l'application Discord via un iframe invisible
     const iframe = document.createElement('iframe');
     iframe.style.display = 'none';
     iframe.src = discordAppUrl;
     document.body.appendChild(iframe);
     
-    // Fallback automatique vers le web après 1 seconde si l'app ne s'ouvre pas
     const fallbackTimer = setTimeout(() => {
-      console.log('⏱️ Timeout atteint - Ouverture web en fallback');
       window.open(discordWebUrl, '_blank', 'noopener,noreferrer');
-      
-      // Nettoyer l'iframe
       if (document.body.contains(iframe)) {
         document.body.removeChild(iframe);
       }
     }, 1000);
     
-    // Si la fenêtre perd le focus (= l'app Discord s'est ouverte), annuler le fallback
     const blurHandler = () => {
-      console.log('✅ Application Discord ouverte - Annulation du fallback');
       clearTimeout(fallbackTimer);
-      
-      // Nettoyer l'iframe après un court délai
       setTimeout(() => {
         if (document.body.contains(iframe)) {
           document.body.removeChild(iframe);
         }
       }, 100);
-      
-      // Retirer ce listener après usage
       window.removeEventListener('blur', blurHandler);
     };
     
     window.addEventListener('blur', blurHandler);
     
-    // Nettoyer après 2 secondes dans tous les cas (sécurité)
     setTimeout(() => {
       if (document.body.contains(iframe)) {
         document.body.removeChild(iframe);
@@ -598,11 +519,9 @@ function addDiscordButton(ticket) {
     }, 2000);
   };
   
-  // Ajouter le hover effect
   discordBtn.onmouseenter = () => discordBtn.style.background = '#4752c4';
   discordBtn.onmouseleave = () => discordBtn.style.background = '#5865f2';
   
-  // Insérer le bouton juste avant le bouton de fermeture
   const closeBtn = modalHeader.querySelector('.close-btn');
   if (closeBtn) {
     modalHeader.insertBefore(discordBtn, closeBtn);
@@ -611,11 +530,8 @@ function addDiscordButton(ticket) {
   }
 }
 
-// Claim un ticket (assignation)
 async function claimTicket(ticketId, userId) {
   try {
-    console.log(`🎯 Assignation du ticket ${ticketId} à l'utilisateur ${userId}`);
-    
     const response = await fetch('/api/claim-ticket', {
       method: 'POST',
       credentials: 'include',
@@ -632,18 +548,11 @@ async function claimTicket(ticketId, userId) {
       throw new Error('Erreur lors de l\'assignation');
     }
     
-    const data = await response.json();
-    
-    // Afficher le nom de l'utilisateur assigné
     const assignedUser = allStaffUsers.find(u => u.id === userId) || currentUser;
     const userName = assignedUser.discord_global_name || assignedUser.discord_username || 'l\'utilisateur';
     
-    // Recharger les tickets
     await loadTickets();
-    
-    // Fermer le modal
     closeTicketDetail();
-    
     showSuccess(`Ticket assigné avec succès à ${userName} !`);
     
   } catch (error) {
@@ -652,11 +561,8 @@ async function claimTicket(ticketId, userId) {
   }
 }
 
-// Mettre à jour la priorité d'un ticket
 async function updateTicketPriority(ticketId, newPriority) {
   try {
-    console.log(`🎯 Mise à jour priorité du ticket ${ticketId} → ${newPriority || 'aucune'}`);
-    
     const response = await fetch('/api/update-ticket-priority', {
       method: 'POST',
       credentials: 'include',
@@ -674,12 +580,8 @@ async function updateTicketPriority(ticketId, newPriority) {
     }
     
     const data = await response.json();
-    
-    // Afficher un message de succès
     showSuccess(data.message || 'Priorité mise à jour avec succès !');
-    
-    // Recharger les tickets pour mettre à jour l'affichage
-    await loadTickets(true); // Refresh silencieux
+    await loadTickets(true);
     
   } catch (error) {
     console.error('Erreur updateTicketPriority:', error);
@@ -687,29 +589,23 @@ async function updateTicketPriority(ticketId, newPriority) {
   }
 }
 
-// Ajouter un dropdown de sélection de priorité au modal
 function addPriorityDropdown(ticket) {
   const modalHeader = document.querySelector('.modal-header');
   if (!modalHeader) return;
   
-  // Supprimer l'ancien conteneur de priorité s'il existe
   const existingContainer = modalHeader.querySelector('.priority-container');
   if (existingContainer) existingContainer.remove();
   
-  // Ne pas afficher le dropdown de priorité pour les tickets résolus
   if (ticket.status === 'resolu') return;
   
-  // Créer le conteneur de priorité
   const priorityContainer = document.createElement('div');
   priorityContainer.className = 'priority-container';
   priorityContainer.style.cssText = 'display: flex; align-items: center; gap: 0.75rem; margin-left: 1rem;';
   
-  // Label
   const label = document.createElement('span');
   label.textContent = 'Priorité:';
   label.style.cssText = 'color: var(--text-secondary); font-size: 0.9rem; font-weight: 500;';
   
-  // Dropdown
   const select = document.createElement('select');
   select.className = 'priority-select';
   select.style.cssText = `
@@ -725,7 +621,6 @@ function addPriorityDropdown(ticket) {
     flex-shrink: 0;
   `;
   
-  // Options du dropdown
   const priorities = [
     { value: '', label: '⚪ Non définie', color: 'var(--text-muted)' },
     { value: 'haute', label: '🔴 Haute', color: 'var(--danger)' },
@@ -744,11 +639,9 @@ function addPriorityDropdown(ticket) {
     select.appendChild(option);
   });
   
-  // Gérer le changement de priorité
   select.addEventListener('change', async (e) => {
     const newPriority = e.target.value || null;
     
-    // Confirmation si changement vers "Non définie"
     if (newPriority === null && ticket.priority) {
       if (!confirm('Voulez-vous vraiment retirer la priorité de ce ticket ?')) {
         e.target.value = ticket.priority || '';
@@ -756,16 +649,13 @@ function addPriorityDropdown(ticket) {
       }
     }
     
-    // Désactiver le select pendant la mise à jour
     select.disabled = true;
     select.style.opacity = '0.6';
     
     try {
       await updateTicketPriority(ticket.id, newPriority);
-      // Mettre à jour l'objet ticket local
       ticket.priority = newPriority;
     } catch (error) {
-      // Restaurer l'ancienne valeur en cas d'erreur
       e.target.value = ticket.priority || '';
     } finally {
       select.disabled = false;
@@ -776,7 +666,6 @@ function addPriorityDropdown(ticket) {
   priorityContainer.appendChild(label);
   priorityContainer.appendChild(select);
   
-  // Insérer avant le bouton de fermeture ou après le conteneur d'assignation
   const closeBtn = modalHeader.querySelector('.close-btn');
   const assignContainer = modalHeader.querySelector('.assign-container');
   
@@ -789,19 +678,14 @@ function addPriorityDropdown(ticket) {
   }
 }
 
-// Fermer le modal de détail ET forcer un refresh
 function closeTicketDetail() {
   const modal = document.getElementById('ticketModal');
   if (modal) {
     modal.classList.remove('active');
   }
-  
-  // Forcer un refresh après fermeture de la popup
-  console.log('🔄 Refresh après fermeture de la popup des messages');
-  loadTickets(false); // Refresh visible (non-silencieux)
+  loadTickets(false);
 }
 
-// Mettre à jour les statistiques
 function updateStats(stats) {
   if (!stats) return;
   
@@ -816,36 +700,26 @@ function updateStats(stats) {
   if (avgTimeElement) avgTimeElement.textContent = `${stats.avg_resolution_hours || 0}h`;
 }
 
-// Appliquer les filtres
-function applyFilters() {
-  loadTickets();
-}
-
-// Recherche
 function handleSearch(searchTerm) {
   currentFilters.search = searchTerm || null;
   loadTickets();
 }
 
-// Gérer les filtres de priorité
 function filterByPriority(priority) {
   currentFilters.priority = priority === 'all' ? null : priority;
   loadTickets();
 }
 
-// Gérer les filtres d'assignation
 function filterByAssignation(assigned) {
   currentFilters.assigned_to = assigned === 'all' ? null : assigned;
   loadTickets();
 }
 
-// Gérer les filtres de catégorie
 function filterByCategory(categoryId) {
   currentFilters.category_id = categoryId === 'all' ? null : categoryId;
   loadTickets();
 }
 
-// Utilitaires
 function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text;
@@ -863,6 +737,28 @@ function formatDateTime(dateString) {
   });
 }
 
+// ✅ AJOUT : Fonction formatTimeAgo manquante
+function formatTimeAgo(dateString) {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now - date;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+  
+  if (diffMins < 1) return 'À l\'instant';
+  if (diffMins < 60) return `Il y a ${diffMins} min`;
+  if (diffHours < 24) return `Il y a ${diffHours}h`;
+  if (diffDays === 1) return 'Hier';
+  if (diffDays < 7) return `Il y a ${diffDays}j`;
+  
+  return date.toLocaleDateString('fr-FR', { 
+    day: '2-digit', 
+    month: '2-digit', 
+    year: 'numeric' 
+  });
+}
+
 function showError(message) {
   alert(`❌ ${message}`);
 }
@@ -871,14 +767,11 @@ function showSuccess(message) {
   alert(`✅ ${message}`);
 }
 
-// Actualiser les tickets
 function refreshTickets() {
   loadTickets();
 }
 
-// Event listeners pour les filtres
 document.addEventListener('DOMContentLoaded', () => {
-  // Barre de recherche
   const searchInput = document.querySelector('.search-box input');
   if (searchInput) {
     let searchTimeout;
@@ -890,13 +783,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
   
-  // Bouton actualiser
   const refreshBtn = document.querySelector('.toolbar-actions button:nth-child(1)');
   if (refreshBtn) {
     refreshBtn.addEventListener('click', refreshTickets);
   }
   
-  // Fermeture modal au clic extérieur
   const modal = document.getElementById('ticketModal');
   if (modal) {
     modal.addEventListener('click', (e) => {
@@ -906,10 +797,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
   
-  // Auto-refresh : Actualiser automatiquement toutes les 2 minutes
   setInterval(() => {
     console.log('🔄 Auto-refresh des tickets...');
-    loadTickets(true); // true = refresh silencieux
+    loadTickets(true);
   }, AUTO_REFRESH_DELAY);
   
   console.log(`✅ Auto-refresh activé : actualisation toutes les ${AUTO_REFRESH_DELAY / 1000} secondes`);
