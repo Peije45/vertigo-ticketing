@@ -48,15 +48,14 @@ exports.handler = async (event, context) => {
     
     console.log(`📖 Marquage de tous les tickets comme lus pour l'utilisateur ${userId}`);
     
-    // Récupérer tous les tickets actifs (non résolus)
+    // Récupérer TOUS les tickets (actifs ET résolus)
     const activeTickets = await sql`
       SELECT id, discord_channel_id
       FROM tickets
-      WHERE status != 'resolu'
       ORDER BY created_at DESC
     `;
     
-    console.log(`📋 ${activeTickets.length} tickets actifs à marquer comme lus`);
+    console.log(`📋 ${activeTickets.length} tickets à marquer comme lus`);
     
     let ticketsMarkedAsRead = 0;
     
