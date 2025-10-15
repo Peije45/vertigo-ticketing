@@ -11,7 +11,9 @@ const CATEGORY_MAPPINGS = {
   "1385592028754087996": "RP",
   "1385591177138671737": "Dossier",
   "1385592373886844948": "Bugs",
-  "1385592539247153243": "Questions"
+  "1385592539247153243": "Questions",
+  "1427987863189979318": "Wipe",
+  "1427989223700435055": "Don"
 };
 
 exports.handler = async (event, context) => {
