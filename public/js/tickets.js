@@ -1,5 +1,5 @@
 // public/js/tickets.js
-// Gestion des tickets côté client - VERSION AVEC ONGLETS ACTIFS/RÉSOLUS ET MARQUER TOUT COMME LU
+// Gestion des tickets côté client - VERSION CORRIGÉE AVEC FILTRAGE SERVEUR
 
 let allTickets = [];
 let allStaffUsers = [];
@@ -51,7 +51,7 @@ async function loadStaffUsers() {
   }
 }
 
-// Charger les tickets depuis l'API
+// Charger les tickets depuis l'API - VERSION CORRIGÉE
 async function loadTickets(silent = false) {
   try {
     if (!silent) {
@@ -61,11 +61,14 @@ async function loadTickets(silent = false) {
     // Construire l'URL avec les filtres
     const params = new URLSearchParams();
     
-    // Ajouter le filtre de statut selon l'onglet actif
+    // ✅ FIX : Ajouter le filtre de statut selon l'onglet actif CÔTÉ SERVEUR
     if (currentTab === 'active') {
-      // Ne pas ajouter de filtre de statut, mais exclure les résolus côté serveur
-      // On va filtrer côté client pour plus de flexibilité
+      // Pour l'onglet actif : on veut tous les tickets SAUF les résolus
+      // On va utiliser un paramètre spécial "exclude_status" ou filtrer différemment
+      // Solution simple : ne pas mettre de filtre status, mais on va gérer ça côté serveur
+      params.append('exclude_status', 'resolu');
     } else if (currentTab === 'resolved') {
+      // Pour l'onglet résolu : on veut UNIQUEMENT les résolus
       params.append('status', 'resolu');
     }
     
@@ -86,12 +89,8 @@ async function loadTickets(silent = false) {
     
     const data = await response.json();
     
-    // Filtrer les tickets selon l'onglet
-    if (currentTab === 'active') {
-      allTickets = data.tickets.filter(t => t.status !== 'resolu');
-    } else {
-      allTickets = data.tickets;
-    }
+    // ✅ FIX : Plus besoin de filtrer côté client, le serveur le fait
+    allTickets = data.tickets;
     
     // Mettre à jour l'affichage
     displayTickets(allTickets);
@@ -110,9 +109,8 @@ async function loadTickets(silent = false) {
   }
 }
 
-// Mettre à jour les badges des onglets - VERSION CORRIGÉE
+// Mettre à jour les badges des onglets
 function updateTabBadges(stats) {
-  // ✅ FIX : Utiliser les stats globales du serveur au lieu de compter manuellement
   const activeCount = stats.active_count || 0;
   const resolvedCount = stats.resolved_count || 0;
   
