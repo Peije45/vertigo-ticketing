@@ -1,5 +1,5 @@
 // netlify/functions/get-tickets.js
-// Récupérer les tickets avec filtres - VERSION CORRIGÉE
+// Récupérer les tickets avec filtres - VERSION CORRIGÉE AVEC FILTRAGE SERVEUR
 
 const { neon } = require('@neondatabase/serverless');
 
@@ -42,6 +42,7 @@ exports.handler = async (event, context) => {
     const params = event.queryStringParameters || {};
     const {
       status,
+      exclude_status, // ✅ NOUVEAU : paramètre pour exclure un statut
       priority,
       category_id,
       assigned_to,
@@ -54,21 +55,26 @@ exports.handler = async (event, context) => {
     const whereConditions = [];
     const whereParams = [];
     
-    // Filtre par statut
+    // ✅ FIX : Gérer le filtre par statut OU l'exclusion de statut
     if (status) {
-      whereConditions.push(`t.status = $${whereConditions.length + 1}`);
+      // Filtrer pour un statut spécifique
+      whereConditions.push(`t.status = $${whereParams.length + 1}`);
       whereParams.push(status);
+    } else if (exclude_status) {
+      // Exclure un statut spécifique (pour l'onglet "actifs" = tout sauf "resolu")
+      whereConditions.push(`t.status != $${whereParams.length + 1}`);
+      whereParams.push(exclude_status);
     }
     
     // Filtre par priorité
     if (priority) {
-      whereConditions.push(`t.priority = $${whereConditions.length + 1}`);
+      whereConditions.push(`t.priority = $${whereParams.length + 1}`);
       whereParams.push(priority);
     }
     
     // Filtre par catégorie
     if (category_id) {
-      whereConditions.push(`t.category_id = $${whereConditions.length + 1}`);
+      whereConditions.push(`t.category_id = $${whereParams.length + 1}`);
       whereParams.push(parseInt(category_id));
     }
     
@@ -77,11 +83,11 @@ exports.handler = async (event, context) => {
       if (assigned_to === 'unassigned') {
         whereConditions.push('t.assigned_to_user_id IS NULL');
       } else if (assigned_to === 'me') {
-        whereConditions.push(`t.assigned_to_user_id = $${whereConditions.length + 1}`);
+        whereConditions.push(`t.assigned_to_user_id = $${whereParams.length + 1}`);
         whereParams.push(userId);
       } else {
         // ID spécifique
-        whereConditions.push(`t.assigned_to_user_id = $${whereConditions.length + 1}`);
+        whereConditions.push(`t.assigned_to_user_id = $${whereParams.length + 1}`);
         whereParams.push(assigned_to);
       }
     }
@@ -89,8 +95,8 @@ exports.handler = async (event, context) => {
     // Filtre par recherche (titre ou username)
     if (search && search.length > 0) {
       whereConditions.push(`(
-        LOWER(t.title) LIKE $${whereConditions.length + 1} 
-        OR LOWER(t.created_by_username) LIKE $${whereConditions.length + 1}
+        LOWER(t.title) LIKE $${whereParams.length + 1} 
+        OR LOWER(t.created_by_username) LIKE $${whereParams.length + 1}
       )`);
       whereParams.push(`%${search.toLowerCase()}%`);
     }
@@ -100,7 +106,7 @@ exports.handler = async (event, context) => {
       ? 'WHERE ' + whereConditions.join(' AND ')
       : '';
     
-    // Requête SQL complète avec les filtres dynamiques et statut de lecture par utilisateur
+    // ✅ Requête SQL complète avec les filtres dynamiques et statut de lecture par utilisateur
     const query = `
       SELECT 
         t.*,
@@ -163,8 +169,7 @@ exports.handler = async (event, context) => {
     // Exécuter la requête avec les paramètres
     const tickets = await sql(query, whereParams);
     
-    // ✅ FIX : Récupérer les statistiques GLOBALES (sans filtre)
-    // Incluant les counts totaux de tickets actifs et résolus
+    // ✅ Récupérer les statistiques GLOBALES (sans filtre utilisateur)
     const stats = await sql`
       SELECT 
         COUNT(*) FILTER (WHERE priority = 'haute' AND status != 'resolu') as urgent_count,
