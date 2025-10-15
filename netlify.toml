@@ -99,6 +99,18 @@
   to = "/.netlify/functions/mark-all-as-read"
   status = 200
 
+# ✅ NOUVELLE ROUTE : Archiver les anciens tickets
+[[redirects]]
+  from = "/api/archive-old-tickets"
+  to = "/.netlify/functions/archive-old-tickets"
+  status = 200
+
+# ✅ NOUVELLE ROUTE : Récupérer les tickets archivés
+[[redirects]]
+  from = "/api/get-archived-tickets"
+  to = "/.netlify/functions/get-archived-tickets"
+  status = 200
+
 # Redirection SPA - doit être en dernier
 [[redirects]]
   from = "/*"
