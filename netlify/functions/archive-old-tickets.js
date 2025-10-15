@@ -1,6 +1,7 @@
 // netlify/functions/archive-old-tickets.js
-// Archiver automatiquement les tickets résolus au-delà des 500 derniers
-// ✅ Peut être appelé manuellement ou via un schedule
+// Archiver manuellement les tickets résolus
+// Logique : Dès qu'on atteint 480 tickets résolus, archiver les 100 plus anciens
+// ✅ Peut être appelé manuellement avec admin_secret
 
 const { neon } = require('@neondatabase/serverless');
 
@@ -45,11 +46,11 @@ exports.handler = async (event, context) => {
       };
     }
     
-    console.log('📦 Début de l\'archivage des anciens tickets...');
+    console.log('📦 [MANUEL] Début de l\'archivage manuel...');
     
     const sql = neon(DATABASE_URL);
     
-    // Étape 1 : Compter le nombre total de tickets résolus
+    // Étape 1 : Compter le nombre total de tickets résolus non archivés
     const totalResolved = await sql`
       SELECT COUNT(*) as count
       FROM tickets
@@ -60,25 +61,25 @@ exports.handler = async (event, context) => {
     const totalCount = parseInt(totalResolved[0].count);
     console.log(`📊 ${totalCount} tickets résolus non archivés trouvés`);
     
-    if (totalCount <= 500) {
-      console.log('✅ Aucun ticket à archiver (moins de 500 tickets résolus)');
+    // Étape 2 : Vérifier si on doit archiver (seuil : 480 tickets)
+    if (totalCount < 480) {
+      console.log(`✅ Aucun archivage nécessaire (${totalCount} < 480)`);
       return {
         statusCode: 200,
         headers,
         body: JSON.stringify({
           success: true,
           tickets_archived: 0,
-          message: 'Aucun ticket à archiver (moins de 500 tickets résolus)',
-          total_resolved: totalCount
+          message: `Aucun archivage nécessaire (${totalCount} tickets résolus, seuil : 480)`,
+          total_resolved: totalCount,
+          threshold: 480
         })
       };
     }
     
-    // Étape 2 : Identifier les tickets à archiver (tous sauf les 500 derniers)
-    const ticketsToArchive = totalCount - 500;
-    console.log(`📦 ${ticketsToArchive} tickets vont être archivés`);
+    // Étape 3 : Archiver les 100 tickets résolus les plus anciens
+    console.log(`⚠️ Seuil atteint (${totalCount} >= 480) → Archivage de 100 tickets les plus anciens`);
     
-    // Étape 3 : Archiver les tickets (tous les résolus sauf les 500 plus récents)
     const archivedTickets = await sql`
       UPDATE tickets
       SET 
@@ -89,18 +90,20 @@ exports.handler = async (event, context) => {
         FROM tickets
         WHERE status = 'resolu'
           AND is_archived = false
-        ORDER BY closed_at DESC NULLS LAST, updated_at DESC
-        OFFSET 500
+        ORDER BY closed_at ASC NULLS LAST, updated_at ASC
+        LIMIT 100
       )
       RETURNING id, title, closed_at
     `;
     
     const archivedCount = archivedTickets.length;
+    const remainingCount = totalCount - archivedCount;
     
     console.log(`✅ ${archivedCount} tickets archivés avec succès`);
+    console.log(`📊 ${remainingCount} tickets résolus restants en base`);
     
-    // Étape 4 : Logger l'archivage dans les activités
-    for (const ticket of archivedTickets.slice(0, 10)) { // Logger seulement les 10 premiers pour éviter trop de logs
+    // Étape 4 : Logger l'archivage (seulement pour les 10 premiers)
+    for (const ticket of archivedTickets.slice(0, 10)) {
       try {
         await sql`
           INSERT INTO ticket_activity_log (
@@ -116,7 +119,7 @@ exports.handler = async (event, context) => {
             'archived',
             'false',
             'true',
-            'Ticket archivé automatiquement (au-delà des 500 derniers tickets résolus)'
+            'Ticket archivé manuellement (seuil de 480 atteint - archivage des 100 plus anciens)'
           )
         `;
       } catch (err) {
@@ -131,14 +134,16 @@ exports.handler = async (event, context) => {
         success: true,
         tickets_archived: archivedCount,
         total_resolved_before: totalCount,
-        total_resolved_after: 500,
+        total_resolved_after: remainingCount,
+        threshold: 480,
+        archive_batch_size: 100,
         message: `${archivedCount} ticket(s) archivé(s) avec succès`,
         timestamp: new Date().toISOString()
       })
     };
     
   } catch (error) {
-    console.error('❌ Erreur archivage:', error);
+    console.error('❌ Erreur archivage manuel:', error);
     return {
       statusCode: 500,
       headers,
