@@ -47,13 +47,16 @@ exports.handler = async (event, context) => {
       category_id,
       assigned_to,
       search,
-      limit = '50',
+      limit = '500',
       offset = '0'
     } = params;
     
     // Construire dynamiquement les conditions WHERE
     const whereConditions = [];
     const whereParams = [];
+    
+    // ✅ Exclure les tickets archivés par défaut
+    whereConditions.push('t.is_archived = false');
     
     // ✅ FIX : Gérer le filtre par statut OU l'exclusion de statut
     if (status) {
