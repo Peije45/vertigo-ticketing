@@ -1,6 +1,7 @@
 // netlify/functions/scheduled-sync.js
 // Synchronisation automatique COMPLÈTE des tickets toutes les X minutes
 // ✅ INCLUT : Détection et clôture des tickets disparus de Discord
+// ✅ INCLUT : Réouverture automatique des tickets résolus qui réapparaissent
 // ✅ MODIFIÉ : Ne touche plus aux colonnes is_unread/unread_count/has_new_messages (gérées par utilisateur)
 
 const { neon } = require('@neondatabase/serverless');
@@ -13,7 +14,9 @@ const CATEGORY_MAPPINGS = {
   "1385592028754087996": "RP",
   "1385591177138671737": "Dossier",
   "1385592373886844948": "Bugs",
-  "1385592539247153243": "Questions"
+  "1385592539247153243": "Questions",
+  "1427987863189979318": "Wipe",
+  "1427989223700435055": "Don"
 };
 
 // Fonction principale de synchronisation
@@ -81,6 +84,7 @@ const syncTickets = async () => {
     let ticketsCreated = 0;
     let ticketsUpdated = 0;
     let ticketsClosed = 0;
+    let ticketsReopened = 0;
     let assignationsDetected = 0;
     let categoriesChanged = 0;
     let newMessagesCount = 0;
@@ -152,7 +156,6 @@ const syncTickets = async () => {
         // Date de création (à partir du snowflake Discord)
         const createdAt = new Date((parseInt(channel.id) / 4194304) + 1420070400000).toISOString();
         
-        // ✅ MODIFIÉ : Ne plus initialiser is_unread/unread_count/has_new_messages
         // Créer le ticket dans la BDD
         const ticketResult = await sql`
           INSERT INTO tickets (
@@ -309,6 +312,80 @@ const syncTickets = async () => {
       }
     } else {
       console.log(`✅ Aucun ticket disparu détecté`);
+    }
+    
+    // ============================================
+    // ÉTAPE 5B : Réouvrir les tickets résolus qui réapparaissent sur Discord
+    // ============================================
+    console.log(`🔓 Détection des tickets résolus réapparus sur Discord...`);
+    
+    // Récupérer les tickets marqués "résolu" en BDD
+    const resolvedTickets = await sql`
+      SELECT 
+        id,
+        discord_channel_id,
+        title,
+        status,
+        assigned_to_user_id
+      FROM tickets
+      WHERE status = 'resolu'
+    `;
+    
+    if (resolvedTickets.length > 0) {
+      console.log(`📋 ${resolvedTickets.length} tickets résolus en BDD à vérifier`);
+      
+      // Vérifier lesquels sont présents sur Discord (= réapparus)
+      const reopenedTicketsList = resolvedTickets.filter(ticket => 
+        currentDiscordChannelIds.has(ticket.discord_channel_id)
+      );
+      
+      if (reopenedTicketsList.length > 0) {
+        console.log(`🔓 ${reopenedTicketsList.length} tickets résolus réapparus sur Discord - réouverture automatique`);
+        
+        for (const ticket of reopenedTicketsList) {
+          try {
+            console.log(`🔓 Réouverture du ticket "${ticket.title}" (ID: ${ticket.id})`);
+            
+            // Réouvrir le ticket : passer le statut de "resolu" à "en_cours"
+            await sql`
+              UPDATE tickets 
+              SET 
+                status = 'en_cours',
+                closed_at = NULL,
+                updated_at = CURRENT_TIMESTAMP
+              WHERE id = ${ticket.id}
+            `;
+            
+            // Logger la réouverture
+            await sql`
+              INSERT INTO ticket_activity_log (
+                ticket_id,
+                user_id,
+                action_type,
+                old_value,
+                new_value,
+                comment
+              ) VALUES (
+                ${ticket.id},
+                NULL,
+                'status_changed',
+                'resolu',
+                'en_cours',
+                'Ticket réouvert automatiquement : réapparu sur Discord'
+              )
+            `;
+            
+            ticketsReopened++;
+            
+          } catch (error) {
+            console.error(`❌ Erreur réouverture ticket ${ticket.id}:`, error.message);
+          }
+        }
+      } else {
+        console.log(`✅ Aucun ticket résolu réapparu détecté`);
+      }
+    } else {
+      console.log(`✅ Aucun ticket résolu en BDD`);
     }
     
     // ============================================
@@ -546,8 +623,6 @@ const syncTickets = async () => {
           }
         }
         
-        // ✅ MODIFIÉ : Ne plus mettre à jour is_unread/unread_count/has_new_messages
-        // Ces informations sont maintenant gérées par utilisateur via ticket_read_status
         // Mettre à jour seulement last_message_at si nouveaux messages
         if (newMessages.length > 0) {
           await sql`
@@ -575,6 +650,7 @@ const syncTickets = async () => {
       new_tickets_created: ticketsCreated,
       existing_tickets_updated: ticketsUpdated,
       tickets_closed_automatically: ticketsClosed,
+      tickets_reopened_automatically: ticketsReopened,
       assignations_detected: assignationsDetected,
       categories_changed: categoriesChanged,
       new_messages_synced: newMessagesCount,
@@ -585,6 +661,7 @@ const syncTickets = async () => {
     console.log(`   - ${ticketsCreated} nouveaux tickets créés`);
     console.log(`   - ${ticketsUpdated} tickets existants mis à jour`);
     console.log(`   - ${ticketsClosed} tickets clôturés automatiquement`);
+    console.log(`   - ${ticketsReopened} tickets réouverts automatiquement`);
     console.log(`   - ${assignationsDetected} assignations détectées`);
     console.log(`   - ${categoriesChanged} changements de catégorie détectés`);
     console.log(`   - ${newMessagesCount} nouveaux messages synchronisés`);
