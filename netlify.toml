@@ -75,22 +75,28 @@
   to = "/.netlify/functions/get-roles"
   status = 200
 
-# ✅ NOUVELLE ROUTE : Liste des utilisateurs staff pour l'assignation
+# Route : Liste des utilisateurs staff pour l'assignation
 [[redirects]]
   from = "/api/get-staff-users"
   to = "/.netlify/functions/get-staff-users"
   status = 200
 
-# ✅ ROUTE : Correction des catégories
+# Route : Correction des catégories
 [[redirects]]
   from = "/api/admin/fix-categories"
   to = "/.netlify/functions/admin-fix-categories"
   status = 200
 
-# ✅ ROUTE : Mise à jour de la priorité d'un ticket
+# Route : Mise à jour de la priorité d'un ticket
 [[redirects]]
   from = "/api/update-ticket-priority"
   to = "/.netlify/functions/update-ticket-priority"
+  status = 200
+
+# ✅ NOUVELLE ROUTE : Marquer tous les tickets comme lus
+[[redirects]]
+  from = "/api/mark-all-as-read"
+  to = "/.netlify/functions/mark-all-as-read"
   status = 200
 
 # Redirection SPA - doit être en dernier
