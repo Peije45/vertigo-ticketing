@@ -1,5 +1,5 @@
 // public/js/tickets.js
-// Gestion des tickets côté client - VERSION CORRIGÉE (fix compteurs badges)
+// Gestion des tickets côté client - VERSION AVEC ONGLETS ACTIFS/RÉSOLUS ET MARQUER TOUT COMME LU
 
 let allTickets = [];
 let allStaffUsers = [];
@@ -96,9 +96,7 @@ async function loadTickets(silent = false) {
     // Mettre à jour l'affichage
     displayTickets(allTickets);
     updateStats(data.stats);
-    
-    // ✅ FIX : Utiliser les counts depuis data.stats au lieu de compter manuellement
-    updateTabBadges(data.stats);
+    updateTabBadges(data.tickets);
     
     if (!silent) {
       console.log(`✅ ${allTickets.length} tickets chargés (onglet: ${currentTab})`);
@@ -112,13 +110,16 @@ async function loadTickets(silent = false) {
   }
 }
 
-// ✅ FIX : Mettre à jour les badges des onglets depuis les statistiques globales
-function updateTabBadges(stats) {
+// Mettre à jour les badges des onglets
+function updateTabBadges(allTicketsData) {
+  const activeCount = allTicketsData.filter(t => t.status !== 'resolu').length;
+  const resolvedCount = allTicketsData.filter(t => t.status === 'resolu').length;
+  
   const activeBadge = document.getElementById('activeTabBadge');
   const resolvedBadge = document.getElementById('resolvedTabBadge');
   
-  if (activeBadge) activeBadge.textContent = stats.active_count || 0;
-  if (resolvedBadge) resolvedBadge.textContent = stats.resolved_count || 0;
+  if (activeBadge) activeBadge.textContent = activeCount;
+  if (resolvedBadge) resolvedBadge.textContent = resolvedCount;
 }
 
 // Afficher les tickets dans le DOM
@@ -220,6 +221,42 @@ function getPriorityIndicator(priority) {
     'basse': '<span class="priority-indicator priority-low"></span>'
   };
   return indicators[priority] || '<span class="priority-indicator" style="background: var(--text-muted);"></span>';
+}
+
+// Marquer tous les tickets comme lus
+async function markAllAsRead() {
+  // Confirmation
+  if (!confirm('Voulez-vous vraiment marquer tous les tickets comme lus ?')) {
+    return;
+  }
+  
+  try {
+    console.log('📖 Marquage de tous les tickets comme lus...');
+    
+    const response = await fetch('/api/mark-all-as-read', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error('Erreur lors du marquage');
+    }
+    
+    const data = await response.json();
+    
+    console.log(`✅ ${data.tickets_marked} tickets marqués comme lus`);
+    showSuccess(data.message || 'Tous les tickets ont été marqués comme lus !');
+    
+    // Recharger les tickets pour mettre à jour l'affichage
+    await loadTickets();
+    
+  } catch (error) {
+    console.error('❌ Erreur markAllAsRead:', error);
+    showError('Impossible de marquer les tickets comme lus');
+  }
 }
 
 // Ouvrir le détail d'un ticket
