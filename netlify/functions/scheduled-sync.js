@@ -181,7 +181,7 @@ const syncTickets = async () => {
             ${status},
             ${priority},
             ${creator?.id || 'unknown'},
-            ${ticketInfo.username || creator?.username || 'Utilisateur inconnu'},
+            ${creator?.username || ticketInfo.username || 'Utilisateur inconnu'},
             ${creator?.avatar ? `https://cdn.discordapp.com/avatars/${creator.id}/${creator.avatar}.png` : null},
             ${assignedUserId},
             ${assignedUserId ? new Date().toISOString() : null},
