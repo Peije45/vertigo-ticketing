@@ -891,14 +891,14 @@ function updateStats(stats) {
   if (!stats) return;
   
   const urgentElement = document.querySelector('.stat-card.urgent .stat-number');
-  const pendingElement = document.querySelector('.stat-card.pending .stat-number');
+  const inProgressElement = document.querySelector('.stat-card.pending .stat-number');
+  const unassignedElement = document.querySelector('.stat-card.unassigned .stat-number');
   const resolvedElement = document.querySelector('.stat-card.resolved .stat-number');
-  const avgTimeElement = document.querySelector('.stat-card:not(.urgent):not(.pending):not(.resolved) .stat-number');
   
   if (urgentElement) urgentElement.textContent = stats.urgent_count || 0;
-  if (pendingElement) pendingElement.textContent = stats.pending_count || 0;
+  if (inProgressElement) inProgressElement.textContent = stats.in_progress_count || 0;
+  if (unassignedElement) unassignedElement.textContent = stats.unassigned_count || 0;
   if (resolvedElement) resolvedElement.textContent = stats.resolved_7d_count || 0;
-  if (avgTimeElement) avgTimeElement.textContent = `${stats.avg_resolution_hours || 0}h`;
 }
 
 // Appliquer les filtres
