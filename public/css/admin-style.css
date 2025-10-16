@@ -2,20 +2,30 @@
    VERTIGO RP - Admin Panel Styles
    ==================================== */
 
-/* Variables CSS */
+/* Variables CSS - Thème Vertigo Or/Bronze */
 :root {
-    --discord-dark: #2b2d31;
-    --discord-darker: #1e1f22;
-    --discord-light: #313338;
-    --discord-hover: #404249;
-    --discord-blurple: #5865f2;
+    --vertigo-darker: #1a1614;
+    --vertigo-dark: #2b1f14;
+    --vertigo-medium: #3d2f1f;
+    --vertigo-hover: #4a3724;
+    --vertigo-gold: #c4975a;
+    --vertigo-gold-light: #d4a574;
+    --vertigo-bronze: #b8905f;
+    
+    /* Anciens noms pour compatibilité */
+    --discord-darker: #1a1614;
+    --discord-dark: #2b1f14;
+    --discord-light: #3d2f1f;
+    --discord-hover: #4a3724;
+    --discord-blurple: #c4975a;
+    
     --text-primary: #f2f3f5;
-    --text-secondary: #b5bac1;
-    --text-muted: #80848e;
-    --success: #3ba55d;
-    --danger: #ed4245;
-    --warning: #faa61a;
-    --info: #00b0f4;
+    --text-secondary: #d4a574;
+    --text-muted: #b8905f;
+    --success: #6b8e4e;
+    --danger: #c45a5a;
+    --warning: #c4975a;
+    --info: #7a9fb5;
 }
 
 /* Reset et Base */
@@ -36,12 +46,13 @@ body {
    ==================================== */
 
 .header {
-    background: var(--discord-dark);
+    background: linear-gradient(135deg, var(--vertigo-dark) 0%, var(--vertigo-medium) 100%);
     padding: 1rem 2rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    border-bottom: 2px solid var(--vertigo-bronze);
     display: flex;
     justify-content: space-between;
     align-items: center;
+    box-shadow: 0 4px 12px rgba(196, 151, 90, 0.2);
 }
 
 .header-left {
@@ -51,12 +62,19 @@ body {
 }
 
 .logo {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
     font-size: 1.5rem;
     font-weight: bold;
-    background: linear-gradient(45deg, #9146ff, #5865f2);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
+    color: var(--vertigo-gold-light);
+}
+
+.logo-image {
+    width: 42px;
+    height: 42px;
+    object-fit: contain;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
 }
 
 .nav-links {
