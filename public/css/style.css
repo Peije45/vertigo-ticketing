@@ -2,21 +2,31 @@
    VERTIGO RP - Dashboard Styles
    ==================================== */
 
-/* Variables CSS */
+/* Variables CSS - Thème Vertigo Or/Bronze */
 :root {
-    --discord-dark: #2b2d31;
-    --discord-darker: #1e1f22;
-    --discord-light: #313338;
-    --discord-hover: #404249;
-    --discord-blurple: #5865f2;
+    --vertigo-darker: #1a1614;
+    --vertigo-dark: #2b1f14;
+    --vertigo-medium: #3d2f1f;
+    --vertigo-hover: #4a3724;
+    --vertigo-gold: #c4975a;
+    --vertigo-gold-light: #d4a574;
+    --vertigo-bronze: #b8905f;
+    
+    /* Anciens noms pour compatibilité */
+    --discord-darker: #1a1614;
+    --discord-dark: #2b1f14;
+    --discord-light: #3d2f1f;
+    --discord-hover: #4a3724;
+    --discord-blurple: #c4975a;
+    
     --text-primary: #f2f3f5;
-    --text-secondary: #b5bac1;
-    --text-muted: #80848e;
-    --success: #3ba55d;
-    --danger: #ed4245;
-    --warning: #faa61a;
-    --info: #00b0f4;
-    --twitch-purple: #9146ff;
+    --text-secondary: #d4a574;
+    --text-muted: #b8905f;
+    --success: #6b8e4e;
+    --danger: #c45a5a;
+    --warning: #c4975a;
+    --info: #7a9fb5;
+    --twitch-purple: #c4975a;
 }
 
 /* Reset et Base */
@@ -38,13 +48,13 @@ body {
    ==================================== */
 
 .header {
-    background: var(--discord-dark);
+    background: linear-gradient(135deg, var(--vertigo-dark) 0%, var(--vertigo-medium) 100%);
     padding: 1rem 2rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    border-bottom: 2px solid var(--vertigo-bronze);
     display: flex;
     justify-content: space-between;
     align-items: center;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 4px 12px rgba(196, 151, 90, 0.2);
 }
 
 .header-left {
@@ -54,12 +64,19 @@ body {
 }
 
 .logo {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
     font-size: 1.5rem;
     font-weight: bold;
-    background: linear-gradient(45deg, var(--twitch-purple), var(--discord-blurple));
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
+    color: var(--vertigo-gold-light);
+}
+
+.logo-image {
+    width: 42px;
+    height: 42px;
+    object-fit: contain;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
 }
 
 .header-title h1 {
@@ -84,7 +101,8 @@ body {
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    border: 2px solid var(--discord-blurple);
+    border: 2px solid var(--vertigo-gold);
+    box-shadow: 0 2px 8px rgba(196, 151, 90, 0.3);
 }
 
 .user-details {
@@ -117,8 +135,8 @@ body {
 
 .sidebar {
     width: 280px;
-    background: var(--discord-dark);
-    border-right: 1px solid rgba(255, 255, 255, 0.05);
+    background: var(--vertigo-dark);
+    border-right: 2px solid var(--vertigo-bronze);
     padding: 1.5rem;
     overflow-y: auto;
 }
@@ -142,10 +160,11 @@ body {
 }
 
 .stat-card {
-    background: var(--discord-light);
+    background: var(--vertigo-medium);
     padding: 1rem;
     border-radius: 8px;
-    border-left: 3px solid var(--discord-blurple);
+    border-left: 3px solid var(--vertigo-gold);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
 }
 
 .stat-card.urgent {
@@ -187,8 +206,8 @@ body {
 .filter-input {
     width: 100%;
     padding: 0.65rem;
-    background: var(--discord-light);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: var(--vertigo-medium);
+    border: 1px solid var(--vertigo-bronze);
     border-radius: 6px;
     color: var(--text-primary);
     font-size: 0.9rem;
@@ -197,7 +216,8 @@ body {
 .filter-select:focus, 
 .filter-input:focus {
     outline: none;
-    border-color: var(--discord-blurple);
+    border-color: var(--vertigo-gold);
+    box-shadow: 0 0 0 2px rgba(196, 151, 90, 0.2);
 }
 
 .category-filters {
@@ -208,8 +228,8 @@ body {
 
 .category-btn {
     padding: 0.6rem;
-    background: var(--discord-light);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: var(--vertigo-medium);
+    border: 1px solid var(--vertigo-bronze);
     border-radius: 6px;
     color: var(--text-secondary);
     cursor: pointer;
@@ -219,14 +239,16 @@ body {
 }
 
 .category-btn:hover {
-    background: var(--discord-hover);
-    color: var(--text-primary);
+    background: var(--vertigo-hover);
+    color: var(--vertigo-gold-light);
+    border-color: var(--vertigo-gold);
 }
 
 .category-btn.active {
-    background: var(--discord-blurple);
-    color: white;
-    border-color: var(--discord-blurple);
+    background: linear-gradient(135deg, var(--vertigo-gold) 0%, var(--vertigo-bronze) 100%);
+    color: var(--vertigo-darker);
+    border-color: var(--vertigo-gold);
+    font-weight: 600;
 }
 
 /* ====================================
