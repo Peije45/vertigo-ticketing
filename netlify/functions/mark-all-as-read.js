@@ -27,7 +27,7 @@ exports.handler = async (event, context) => {
     };
   }
   
-  try {
+ try {
     const sql = neon(DATABASE_URL);
     
     // Récupérer l'utilisateur courant
@@ -46,14 +46,49 @@ exports.handler = async (event, context) => {
     
     const userId = sessions[0].user_id;
     
-    console.log(`📖 Marquage de tous les tickets comme lus pour l'utilisateur ${userId}`);
+    // Récupérer le paramètre de l'onglet actif
+    const body = JSON.parse(event.body || '{}');
+    const currentTab = body.tab || 'active';
     
-    // Récupérer TOUS les tickets (actifs ET résolus)
-    const activeTickets = await sql`
-      SELECT id, discord_channel_id
-      FROM tickets
-      ORDER BY created_at DESC
-    `;
+    console.log(`📖 Marquage de tous les tickets de l'onglet "${currentTab}" comme lus pour l'utilisateur ${userId}`);
+    
+    // Construire la requête en fonction de l'onglet actif
+    let activeTickets;
+    
+    if (currentTab === 'active') {
+      // Onglet actif : tickets NON résolus et NON archivés
+      activeTickets = await sql`
+        SELECT id, discord_channel_id
+        FROM tickets
+        WHERE status != 'resolu'
+          AND is_archived = false
+        ORDER BY created_at DESC
+      `;
+    } else if (currentTab === 'resolved') {
+      // Onglet résolu : tickets résolus et NON archivés
+      activeTickets = await sql`
+        SELECT id, discord_channel_id
+        FROM tickets
+        WHERE status = 'resolu'
+          AND is_archived = false
+        ORDER BY created_at DESC
+      `;
+    } else if (currentTab === 'archived') {
+      // Onglet archives : tickets archivés
+      activeTickets = await sql`
+        SELECT id, discord_channel_id
+        FROM tickets
+        WHERE is_archived = true
+        ORDER BY created_at DESC
+      `;
+    } else {
+      // Par défaut, tous les tickets
+      activeTickets = await sql`
+        SELECT id, discord_channel_id
+        FROM tickets
+        ORDER BY created_at DESC
+      `;
+    }
     
     console.log(`📋 ${activeTickets.length} tickets à marquer comme lus`);
     
@@ -105,6 +140,11 @@ exports.handler = async (event, context) => {
     
     console.log(`✅ ${ticketsMarkedAsRead} tickets marqués comme lus`);
     
+    // Déterminer le nom de l'onglet pour le message
+    const tabLabel = currentTab === 'active' ? 'actifs' : 
+                     currentTab === 'resolved' ? 'résolus' : 
+                     currentTab === 'archived' ? 'archivés' : '';
+    
     return {
       statusCode: 200,
       headers: {
@@ -114,7 +154,8 @@ exports.handler = async (event, context) => {
       body: JSON.stringify({
         success: true,
         tickets_marked: ticketsMarkedAsRead,
-        message: `${ticketsMarkedAsRead} ticket${ticketsMarkedAsRead > 1 ? 's' : ''} marqué${ticketsMarkedAsRead > 1 ? 's' : ''} comme lu${ticketsMarkedAsRead > 1 ? 's' : ''}`
+        tab: currentTab,
+        message: `${ticketsMarkedAsRead} ticket${ticketsMarkedAsRead > 1 ? 's' : ''} ${tabLabel} marqué${ticketsMarkedAsRead > 1 ? 's' : ''} comme lu${ticketsMarkedAsRead > 1 ? 's' : ''}`
       })
     };
     
