@@ -176,14 +176,11 @@ exports.handler = async (event, context) => {
     const stats = await sql`
       SELECT 
         COUNT(*) FILTER (WHERE priority = 'haute' AND status != 'resolu') as urgent_count,
-        COUNT(*) FILTER (WHERE status = 'en_cours') as pending_count,
+        COUNT(*) FILTER (WHERE status != 'resolu') as in_progress_count,
+        COUNT(*) FILTER (WHERE assigned_to_user_id IS NULL AND status != 'resolu') as unassigned_count,
         COUNT(*) FILTER (WHERE status = 'resolu' AND created_at > CURRENT_TIMESTAMP - INTERVAL '7 days') as resolved_7d_count,
         COUNT(*) FILTER (WHERE status != 'resolu') as active_count,
-        COUNT(*) FILTER (WHERE status = 'resolu') as resolved_count,
-        COALESCE(
-          EXTRACT(EPOCH FROM AVG(closed_at - created_at)) / 3600,
-          0
-        )::numeric(10,1) as avg_resolution_hours
+        COUNT(*) FILTER (WHERE status = 'resolu') as resolved_count
       FROM tickets
     `;
     
