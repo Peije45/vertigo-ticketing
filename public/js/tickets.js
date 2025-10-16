@@ -309,20 +309,29 @@ function getPriorityIndicator(priority) {
 
 // Marquer tous les tickets comme lus
 async function markAllAsRead() {
-  // Confirmation
-  if (!confirm('Voulez-vous vraiment marquer tous les tickets comme lus ?')) {
+  // Déterminer le nom de l'onglet pour le message de confirmation
+  const tabLabel = currentTab === 'active' ? 'actifs' : 
+                   currentTab === 'resolved' ? 'résolus' : 
+                   currentTab === 'archived' ? 'archivés' : '';
+  
+  // Vérifier si l'utilisateur est sûr
+  const confirmMessage = `Êtes-vous sûr de vouloir marquer tous les tickets ${tabLabel} comme lus ?`;
+  if (!confirm(confirmMessage)) {
     return;
   }
   
   try {
-    console.log('📖 Marquage de tous les tickets comme lus...');
+    console.log(`📖 Marquage de tous les tickets ${tabLabel} comme lus...`);
     
     const response = await fetch('/api/mark-all-as-read', {
       method: 'POST',
       credentials: 'include',
       headers: {
         'Content-Type': 'application/json'
-      }
+      },
+      body: JSON.stringify({
+        tab: currentTab
+      })
     });
     
     if (!response.ok) {
