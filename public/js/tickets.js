@@ -379,10 +379,8 @@ function displayTicketModal(ticket, messages) {
   
   // Mettre à jour le header du modal
   const titleElement = modal.querySelector('.ticket-title');
-  const idElement = modal.querySelector('.ticket-id');
   
   if (titleElement) titleElement.textContent = ticket.title;
-  if (idElement) idElement.textContent = `#${ticket.discord_channel_id}`;
   
   // Mettre à jour les messages
   const messagesContainer = modal.querySelector('.message-thread');
@@ -416,11 +414,11 @@ function displayTicketModal(ticket, messages) {
 
 // Ajouter un bouton d'assignation au modal
 async function addClaimButton(ticket) {
-  const modalHeader = document.querySelector('.modal-header');
-  if (!modalHeader) return;
+  const modalActions = document.querySelector('.modal-actions');
+  if (!modalActions) return;
   
   // Supprimer l'ancien conteneur d'assignation s'il existe
-  const existingContainer = modalHeader.querySelector('.assign-container');
+  const existingContainer = modalActions.querySelector('.assign-container');
   if (existingContainer) existingContainer.remove();
   
   // Ajouter l'interface d'assignation (sauf si ticket résolu)
@@ -585,18 +583,22 @@ async function addClaimButton(ticket) {
     assignContainer.appendChild(assignBtn);
     assignContainer.appendChild(dropdown);
     
-    const closeBtn = modalHeader.querySelector('.close-btn');
-    modalHeader.insertBefore(assignContainer, closeBtn);
+    const closeBtn = modalActions.querySelector('.close-btn');
+    if (closeBtn) {
+      modalActions.insertBefore(assignContainer, closeBtn);
+    } else {
+      modalActions.appendChild(assignContainer);
+    }
   }
 }
 
 // Ajouter un bouton "Voir sur Discord" au modal avec ouverture intelligente app/web
 function addDiscordButton(ticket) {
-  const modalHeader = document.querySelector('.modal-header');
-  if (!modalHeader) return;
+  const modalActions = document.querySelector('.modal-actions');
+  if (!modalActions) return;
   
   // Supprimer l'ancien bouton Discord s'il existe
-  const existingBtn = modalHeader.querySelector('.discord-button');
+  const existingBtn = modalActions.querySelector('.discord-button');
   if (existingBtn) existingBtn.remove();
   
   // ID du serveur Discord (Vertigo RP)
@@ -697,11 +699,11 @@ function addDiscordButton(ticket) {
   discordBtn.onmouseleave = () => discordBtn.style.background = '#5865f2';
   
   // Insérer le bouton juste avant le bouton de fermeture
-  const closeBtn = modalHeader.querySelector('.close-btn');
+  const closeBtn = modalActions.querySelector('.close-btn');
   if (closeBtn) {
-    modalHeader.insertBefore(discordBtn, closeBtn);
+    modalActions.insertBefore(discordBtn, closeBtn);
   } else {
-    modalHeader.appendChild(discordBtn);
+    modalActions.appendChild(discordBtn);
   }
 }
 
@@ -783,11 +785,11 @@ async function updateTicketPriority(ticketId, newPriority) {
 
 // Ajouter un dropdown de sélection de priorité au modal
 function addPriorityDropdown(ticket) {
-  const modalHeader = document.querySelector('.modal-header');
-  if (!modalHeader) return;
+  const modalActions = document.querySelector('.modal-actions');
+  if (!modalActions) return;
   
   // Supprimer l'ancien conteneur de priorité s'il existe
-  const existingContainer = modalHeader.querySelector('.priority-container');
+  const existingContainer = modalActions.querySelector('.priority-container');
   if (existingContainer) existingContainer.remove();
   
   // Ne pas afficher le dropdown de priorité pour les tickets résolus
@@ -870,16 +872,12 @@ function addPriorityDropdown(ticket) {
   priorityContainer.appendChild(label);
   priorityContainer.appendChild(select);
   
-  // Insérer avant le bouton de fermeture ou après le conteneur d'assignation
-  const closeBtn = modalHeader.querySelector('.close-btn');
-  const assignContainer = modalHeader.querySelector('.assign-container');
-  
-  if (assignContainer) {
-    modalHeader.insertBefore(priorityContainer, assignContainer);
-  } else if (closeBtn) {
-    modalHeader.insertBefore(priorityContainer, closeBtn);
+  // Insérer avant le bouton de fermeture
+  const closeBtn = modalActions.querySelector('.close-btn');
+  if (closeBtn) {
+    modalActions.insertBefore(priorityContainer, closeBtn);
   } else {
-    modalHeader.appendChild(priorityContainer);
+    modalActions.appendChild(priorityContainer);
   }
 }
 
