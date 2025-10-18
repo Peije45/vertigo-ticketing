@@ -413,11 +413,11 @@ function displayTicketModal(ticket, messages) {
   // Ajouter le bouton d'assignation si le ticket n'est pas assigné
   addClaimButton(ticket);
   
+  // Ajouter le bouton de gestion du vote (AVANT Discord pour qu'il soit entre les deux)
+  addVotingButton(ticket);
+  
   // Ajouter le bouton "Voir sur Discord" avec gestion intelligente app/web
   addDiscordButton(ticket);
-  
-  // Ajouter le bouton de gestion du vote
-  addVotingButton(ticket);
   
   // Ajouter la section de vote si nécessaire
   addVotingSection(ticket);
