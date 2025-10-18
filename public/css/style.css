@@ -495,6 +495,107 @@ body {
     padding: 0.3rem 0.65rem;
 }
 
+/* Badge de vote avec tooltip */
+.vote-badge-with-tooltip {
+  background: rgba(88, 101, 242, 0.1);
+  border: 1px solid rgba(88, 101, 242, 0.3);
+  color: var(--text-primary);
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.65rem;
+  border-radius: 12px;
+  position: relative;
+  cursor: help;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+/* Tooltip du badge de vote */
+.vote-badge-tooltip {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  background: #111214;
+  border: 1px solid #40444b;
+  border-radius: 8px;
+  padding: 0.75rem;
+  min-width: 250px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+  z-index: 1000;
+  font-size: 0.85rem;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.vote-badge-with-tooltip:hover .vote-badge-tooltip {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.vote-badge-tooltip .tooltip-header {
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  font-size: 0.9rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #40444b;
+  padding-bottom: 0.5rem;
+}
+
+.vote-badge-tooltip .tooltip-status {
+  padding: 0.15rem 0.5rem;
+  border-radius: 8px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.vote-badge-tooltip .tooltip-status.active {
+  background: #3ba55d;
+  color: white;
+}
+
+.vote-badge-tooltip .tooltip-status.closed {
+  background: #ed4245;
+  color: white;
+}
+
+.vote-badge-tooltip .vote-group {
+  margin-bottom: 0.75rem;
+}
+
+.vote-badge-tooltip .vote-group:last-of-type {
+  margin-bottom: 0.5rem;
+}
+
+.vote-badge-tooltip .vote-group-title {
+  font-weight: 600;
+  font-size: 0.8rem;
+  margin-bottom: 0.4rem;
+  color: var(--text-secondary);
+}
+
+.vote-badge-tooltip .voter-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.vote-badge-tooltip .tooltip-footer {
+  border-top: 1px solid #40444b;
+  padding-top: 0.5rem;
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
 @keyframes pulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.6; }
