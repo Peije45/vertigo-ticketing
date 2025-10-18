@@ -247,11 +247,58 @@ function createTicketCard(ticket) {
     : '';
   
   // Badge de vote si le vote est activé
-  const voteBadge = ticket.voting_enabled 
-    ? `<span class="badge vote" title="${ticket.voting_closed ? 'Vote clôturé' : 'Vote en cours'}">
-         🗳️ <span style="color: #3ba55d;">✅ ${ticket.votes_pour || 0}</span> - <span style="color: #ed4245;">❌ ${ticket.votes_contre || 0}</span>
-       </span>` 
-    : '';
+  let voteBadge = '';
+  if (ticket.voting_enabled) {
+    // Générer la liste des votants POUR
+    const votersPourList = (ticket.voters_pour || []).map(v => `
+      <div class="voter-item">
+        <img src="${v.discord_avatar_url || 'https://cdn.discordapp.com/embed/avatars/0.png'}" class="voter-avatar" alt="">
+        <span class="voter-name">${escapeHtml(v.discord_global_name || v.discord_username)}</span>
+      </div>
+    `).join('');
+    
+    // Générer la liste des votants CONTRE
+    const votersContreList = (ticket.voters_contre || []).map(v => `
+      <div class="voter-item">
+        <img src="${v.discord_avatar_url || 'https://cdn.discordapp.com/embed/avatars/0.png'}" class="voter-avatar" alt="">
+        <span class="voter-name">${escapeHtml(v.discord_global_name || v.discord_username)}</span>
+      </div>
+    `).join('');
+    
+    const statusText = ticket.voting_closed ? '🔒 CLÔTURÉ' : '● EN COURS';
+    const statusClass = ticket.voting_closed ? 'closed' : 'active';
+    
+    voteBadge = `
+      <span class="badge vote-badge-with-tooltip">
+        🗳️ <span style="color: #3ba55d;">✅ ${ticket.votes_pour || 0}</span> - <span style="color: #ed4245;">❌ ${ticket.votes_contre || 0}</span>
+        
+        <div class="vote-badge-tooltip">
+          <div class="tooltip-header">
+            <span>Vote du Staff</span>
+            <span class="tooltip-status ${statusClass}">${statusText}</span>
+          </div>
+          
+          <div class="vote-group">
+            <div class="vote-group-title">✅ POUR (${ticket.votes_pour || 0})</div>
+            <div class="voter-list">
+              ${votersPourList || '<div class="voter-item" style="opacity: 0.5;">Aucun vote</div>'}
+            </div>
+          </div>
+          
+          <div class="vote-group">
+            <div class="vote-group-title">❌ CONTRE (${ticket.votes_contre || 0})</div>
+            <div class="voter-list">
+              ${votersContreList || '<div class="voter-item" style="opacity: 0.5;">Aucun vote</div>'}
+            </div>
+          </div>
+          
+          <div class="tooltip-footer">
+            Participation: ${(ticket.votes_pour || 0) + (ticket.votes_contre || 0)} vote(s)
+          </div>
+        </div>
+      </span>
+    `;
+  }
   
   const assignedUser = ticket.assigned_to_username
     ? `
