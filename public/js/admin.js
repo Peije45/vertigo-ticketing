@@ -343,6 +343,7 @@ function editUser(user) {
   
   // Cocher les checkboxes
   document.getElementById('editCanAccessCheckbox').checked = user.can_access_dashboard;
+  document.getElementById('editCanManageVotesCheckbox').checked = user.can_manage_votes || false;
   document.getElementById('editIsActiveCheckbox').checked = user.is_active;
   
   // 🔥 CORRECTION : Parser et cocher les rôles correctement
@@ -392,11 +393,12 @@ function closeEditUserModal() {
 async function saveUser() {
   const userId = document.getElementById('editUserId').value;
   const canAccess = document.getElementById('editCanAccessCheckbox').checked;
+  const canManageVotes = document.getElementById('editCanManageVotesCheckbox').checked;
   const isActive = document.getElementById('editIsActiveCheckbox').checked;
   const roleIds = Array.from(document.querySelectorAll('#editRolesCheckboxes .role-checkbox:checked'))
     .map(cb => parseInt(cb.value));
   
-  console.log('💾 Sauvegarde utilisateur:', { userId, canAccess, isActive, roleIds });
+  console.log('💾 Sauvegarde utilisateur:', { userId, canAccess, canManageVotes, isActive, roleIds });
   
   try {
     const response = await fetch('/api/admin/update-user', {
@@ -408,6 +410,7 @@ async function saveUser() {
       body: JSON.stringify({
         user_id: userId,
         can_access_dashboard: canAccess,
+        can_manage_votes: canManageVotes,
         is_active: isActive,
         role_ids: roleIds
       })
@@ -478,47 +481,6 @@ function formatTimeAgo(dateString) {
     month: '2-digit', 
     year: 'numeric' 
   });
-}
-
-// Toggle la permission de gestion des votes
-async function toggleVoteManagement(userId, enable) {
-  const action = enable ? 'autoriser' : 'retirer';
-  
-  if (!confirm(`Voulez-vous vraiment ${action} la gestion des votes pour cet utilisateur ?`)) {
-    return;
-  }
-  
-  try {
-    console.log(`🗳️ ${enable ? 'Autorisation' : 'Retrait'} gestion votes pour user ${userId}`);
-    
-    const response = await fetch('/api/admin/update-user', {
-      method: 'POST',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        user_id: userId,
-        can_manage_votes: enable
-      })
-    });
-    
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Erreur lors de la modification');
-    }
-    
-    const data = await response.json();
-    
-    alert(`✅ ${data.message || (enable ? 'Permission accordée' : 'Permission retirée') + ' avec succès !'}`);
-    
-    // Recharger la liste des utilisateurs
-    await loadUsers();
-    
-  } catch (error) {
-    console.error('Erreur toggleVoteManagement:', error);
-    alert(`❌ ${error.message || 'Impossible de modifier la permission'}`);
-  }
 }
 
 // Initialisation
