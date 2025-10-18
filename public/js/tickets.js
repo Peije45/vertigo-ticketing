@@ -246,6 +246,13 @@ function createTicketCard(ticket) {
     ? `<span class="badge category">${ticket.category_emoji || ''} ${ticket.category_name}</span>` 
     : '';
   
+  // Badge de vote si le vote est activé
+  const voteBadge = ticket.voting_enabled 
+    ? `<span class="badge vote" title="${ticket.voting_closed ? 'Vote clôturé' : 'Vote en cours'}">
+         🗳️ <span style="color: #3ba55d;">✅ ${ticket.votes_pour || 0}</span> - <span style="color: #ed4245;">❌ ${ticket.votes_contre || 0}</span>
+       </span>` 
+    : '';
+  
   const assignedUser = ticket.assigned_to_username
     ? `
       <div class="assigned-user">
@@ -266,6 +273,7 @@ function createTicketCard(ticket) {
         <div class="ticket-badges">
           ${statusBadge}
           ${categoryBadge}
+          ${voteBadge}
         </div>
       </div>
       <div class="ticket-meta">
