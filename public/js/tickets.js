@@ -408,6 +408,9 @@ function displayTicketModal(ticket, messages) {
   // Ajouter le bouton "Voir sur Discord" avec gestion intelligente app/web
   addDiscordButton(ticket);
   
+  // Ajouter la section de vote si nécessaire
+  addVotingSection(ticket);
+  
   // Afficher le modal
   modal.classList.add('active');
 }
@@ -966,6 +969,191 @@ function showSuccess(message) {
 // Actualiser les tickets
 function refreshTickets() {
   loadTickets();
+}
+
+// ============================================
+// SYSTÈME DE VOTE
+// ============================================
+
+// Ajouter la section de vote dans le modal
+function addVotingSection(ticket) {
+  const modalBody = document.querySelector('.modal-body');
+  if (!modalBody) return;
+  
+  // Supprimer l'ancienne section de vote si elle existe
+  const existingSection = modalBody.querySelector('.vote-section');
+  if (existingSection) existingSection.remove();
+  
+  // Si le vote n'est pas activé, ne rien afficher
+  if (!ticket.vote_data || !ticket.vote_data.voting_enabled) return;
+  
+  const voteData = ticket.vote_data;
+  const isClosed = voteData.voting_closed;
+  const userVote = voteData.user_vote; // null, 'pour', ou 'contre'
+  
+  // Créer la section de vote
+  const voteSection = document.createElement('div');
+  voteSection.className = 'vote-section' + (isClosed ? ' closed' : '');
+  
+  // Header de la section
+  const voteHeader = `
+    <div class="vote-header">
+      <div class="vote-title">🗳️ Vote du Staff</div>
+      <span class="vote-status ${isClosed ? 'closed' : 'active'}">
+        ${isClosed ? '🔒 CLÔTURÉ' : '● EN COURS'}
+      </span>
+    </div>
+  `;
+  
+  // Boutons de vote
+  const voteButtons = `
+    <div class="vote-buttons">
+      <button class="vote-btn ${userVote === 'pour' ? 'voted-for' : ''}" 
+              onclick="castVote('${ticket.id}', 'pour')"
+              ${isClosed ? 'disabled' : ''}>
+        ✅ Pour
+      </button>
+      <button class="vote-btn ${userVote === 'contre' ? 'voted-against' : ''}" 
+              onclick="castVote('${ticket.id}', 'contre')"
+              ${isClosed ? 'disabled' : ''}>
+        ❌ Contre
+      </button>
+    </div>
+  `;
+  
+  // Résultats du vote
+  const totalVotes = voteData.total_votes;
+  const votesPour = voteData.votes_pour;
+  const votesContre = voteData.votes_contre;
+  const pourcentPour = totalVotes > 0 ? Math.round((votesPour / totalVotes) * 100) : 0;
+  const pourcentContre = totalVotes > 0 ? Math.round((votesContre / totalVotes) * 100) : 0;
+  
+  // Liste des votants POUR (pour la tooltip)
+  const votersPourHtml = voteData.voters_pour.map(v => `
+    <div class="voter-item">
+      <img src="${v.discord_avatar_url || 'https://cdn.discordapp.com/embed/avatars/0.png'}" 
+           class="voter-avatar" alt="">
+      <span class="voter-name">${escapeHtml(v.discord_global_name || v.discord_username)}</span>
+    </div>
+  `).join('');
+  
+  // Liste des votants CONTRE (pour la tooltip)
+  const votersContreHtml = voteData.voters_contre.map(v => `
+    <div class="voter-item">
+      <img src="${v.discord_avatar_url || 'https://cdn.discordapp.com/embed/avatars/0.png'}" 
+           class="voter-avatar" alt="">
+      <span class="voter-name">${escapeHtml(v.discord_global_name || v.discord_username)}</span>
+    </div>
+  `).join('');
+  
+  const voteResults = `
+    <div class="vote-results">
+      <div class="result-row">
+        <div class="result-label">
+          <span>✅ Pour</span>
+          <span>${votesPour} votes (${pourcentPour}%)</span>
+        </div>
+        <div class="progress-bar-container">
+          <div class="progress-bar for" style="width: ${pourcentPour}%">${pourcentPour}%</div>
+          <div class="vote-tooltip">
+            <div class="tooltip-title">✅ Ont voté POUR (${votesPour})</div>
+            ${votersPourHtml || '<div class="voter-item">Aucun vote pour le moment</div>'}
+          </div>
+        </div>
+      </div>
+      
+      <div class="result-row">
+        <div class="result-label">
+          <span>❌ Contre</span>
+          <span>${votesContre} votes (${pourcentContre}%)</span>
+        </div>
+        <div class="progress-bar-container">
+          <div class="progress-bar against" style="width: ${pourcentContre}%">${pourcentContre}%</div>
+          <div class="vote-tooltip">
+            <div class="tooltip-title">❌ Ont voté CONTRE (${votesContre})</div>
+            ${votersContreHtml || '<div class="voter-item">Aucun vote pour le moment</div>'}
+          </div>
+        </div>
+      </div>
+      
+      ${getSummaryHtml(votesPour, votesContre, totalVotes, isClosed, voteData.voting_closed_at)}
+    </div>
+  `;
+  
+  // Assembler la section
+  voteSection.innerHTML = voteHeader + voteButtons + voteResults;
+  
+  // Insérer la section au début du modal body (avant les messages)
+  modalBody.insertBefore(voteSection, modalBody.firstChild);
+}
+
+// Générer le HTML du résumé
+function getSummaryHtml(pour, contre, total, isClosed, closedAt) {
+  let summaryClass = 'summary ';
+  let summaryText = '';
+  
+  if (pour > contre) {
+    summaryClass += 'winning-for';
+    summaryText = `✅ Majorité POUR (${pour} contre ${contre})`;
+  } else if (contre > pour) {
+    summaryClass += 'winning-against';
+    summaryText = `❌ Majorité CONTRE (${contre} contre ${pour})`;
+  } else {
+    summaryClass += 'tied';
+    summaryText = `⚖️ Égalité (${pour} - ${contre})`;
+  }
+  
+  summaryText += ` • Participation: ${total}/10 membres`;
+  
+  if (isClosed && closedAt) {
+    const closedDate = new Date(closedAt).toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    summaryText += ` • Clôturé le ${closedDate}`;
+  }
+  
+  return `<div class="${summaryClass}">${summaryText}</div>`;
+}
+
+// Voter pour ou contre
+async function castVote(ticketId, vote) {
+  if (!ticketId || !vote) return;
+  
+  try {
+    console.log(`🗳️ Vote ${vote} pour le ticket ${ticketId}`);
+    
+    const response = await fetch('/api/cast-vote', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        ticket_id: ticketId,
+        vote: vote
+      })
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Erreur lors du vote');
+    }
+    
+    const data = await response.json();
+    
+    showSuccess(data.message || `Vote "${vote}" enregistré !`);
+    
+    // Recharger les détails du ticket pour mettre à jour l'affichage
+    await openTicketDetail(ticketId);
+    
+  } catch (error) {
+    console.error('Erreur castVote:', error);
+    showError(error.message || 'Impossible de voter');
+  }
 }
 
 // Event listeners pour les filtres
