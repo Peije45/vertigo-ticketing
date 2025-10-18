@@ -130,7 +130,7 @@ function displayUsers(users) {
   if (users.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="6" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+        <td colspan="7" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
           Aucun utilisateur trouvé
         </td>
       </tr>
@@ -147,6 +147,10 @@ function createUserRow(user) {
   const accessBadge = user.can_access_dashboard 
     ? '<span class="badge badge-success">✅ Actif</span>'
     : '<span class="badge badge-danger">❌ Aucun</span>';
+  
+  const voteManageBadge = user.can_manage_votes 
+    ? '<span class="badge badge-success">✅ Autorisé</span>'
+    : '<span class="badge badge-danger">❌ Non autorisé</span>';
   
   const statusBadge = user.is_active
     ? '<span class="badge badge-success">Actif</span>'
@@ -207,6 +211,14 @@ function createUserRow(user) {
         </div>
       </td>
       <td>${accessBadge}</td>
+      <td>
+        ${voteManageBadge}
+        <br>
+        <button class="btn btn-sm" style="margin-top: 0.5rem;" 
+                onclick="toggleVoteManagement('${user.id}', ${!user.can_manage_votes})">
+          ${user.can_manage_votes ? '🚫 Retirer' : '✅ Autoriser'}
+        </button>
+      </td>
       <td>${statusBadge}</td>
       <td style="font-size: 0.85rem; color: var(--text-secondary);">${lastLogin}</td>
       <td>
@@ -468,6 +480,47 @@ function formatTimeAgo(dateString) {
     month: '2-digit', 
     year: 'numeric' 
   });
+}
+
+// Toggle la permission de gestion des votes
+async function toggleVoteManagement(userId, enable) {
+  const action = enable ? 'autoriser' : 'retirer';
+  
+  if (!confirm(`Voulez-vous vraiment ${action} la gestion des votes pour cet utilisateur ?`)) {
+    return;
+  }
+  
+  try {
+    console.log(`🗳️ ${enable ? 'Autorisation' : 'Retrait'} gestion votes pour user ${userId}`);
+    
+    const response = await fetch('/api/admin/update-user', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        user_id: userId,
+        can_manage_votes: enable
+      })
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Erreur lors de la modification');
+    }
+    
+    const data = await response.json();
+    
+    alert(`✅ ${data.message || (enable ? 'Permission accordée' : 'Permission retirée') + ' avec succès !'}`);
+    
+    // Recharger la liste des utilisateurs
+    await loadUsers();
+    
+  } catch (error) {
+    console.error('Erreur toggleVoteManagement:', error);
+    alert(`❌ ${error.message || 'Impossible de modifier la permission'}`);
+  }
 }
 
 // Initialisation
