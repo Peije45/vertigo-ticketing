@@ -111,6 +111,12 @@
   to = "/.netlify/functions/get-archived-tickets"
   status = 200
 
+# ✅ NOUVELLE ROUTE : Activer/désactiver le vote sur un ticket
+[[redirects]]
+  from = "/api/toggle-voting"
+  to = "/.netlify/functions/toggle-voting"
+  status = 200
+
 # Redirection SPA - doit être en dernier
 [[redirects]]
   from = "/*"
