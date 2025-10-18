@@ -411,6 +411,11 @@ body {
     cursor: pointer;
     transition: all 0.2s;
     position: relative;
+    z-index: 1;
+}
+
+.ticket-card:has(.vote-badge-with-tooltip:hover) {
+    z-index: 1001;
 }
 
 .ticket-card:hover {
@@ -527,7 +532,7 @@ body {
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s;
-  z-index: 1000;
+  z-index: 2000;
   font-size: 0.85rem;
   text-transform: none;
   letter-spacing: normal;
