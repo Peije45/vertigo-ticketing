@@ -123,6 +123,12 @@
   to = "/.netlify/functions/cast-vote"
   status = 200
 
+# ✅ NOUVELLE ROUTE : Clôturer le vote d'un ticket
+[[redirects]]
+  from = "/api/close-vote"
+  to = "/.netlify/functions/close-vote"
+  status = 200
+
 # Redirection SPA - doit être en dernier
 [[redirects]]
   from = "/*"
