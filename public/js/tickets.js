@@ -416,6 +416,9 @@ function displayTicketModal(ticket, messages) {
   // Ajouter le bouton "Voir sur Discord" avec gestion intelligente app/web
   addDiscordButton(ticket);
   
+  // Ajouter le bouton de gestion du vote
+  addVotingButton(ticket);
+  
   // Ajouter la section de vote si nécessaire
   addVotingSection(ticket);
   
@@ -982,6 +985,123 @@ function refreshTickets() {
 // ============================================
 // SYSTÈME DE VOTE
 // ============================================
+
+// Ajouter le bouton de gestion du vote dans le header
+function addVotingButton(ticket) {
+  const modalActions = document.querySelector('.modal-actions');
+  if (!modalActions) return;
+  
+  // Supprimer l'ancien bouton de vote s'il existe
+  const existingBtn = modalActions.querySelector('.voting-btn');
+  if (existingBtn) existingBtn.remove();
+  
+  // Ne pas afficher pour les tickets résolus
+  if (ticket.status === 'resolu') return;
+  
+  // Créer le bouton de vote
+  const votingBtn = document.createElement('button');
+  votingBtn.className = 'btn voting-btn';
+  votingBtn.style.cssText = 'margin-right: 0.5rem;';
+  
+  if (ticket.voting_enabled) {
+    if (ticket.voting_closed) {
+      // Vote clôturé - pas de bouton
+      votingBtn.textContent = '🔒 Vote clôturé';
+      votingBtn.disabled = true;
+      votingBtn.style.opacity = '0.6';
+    } else {
+      // Vote en cours - bouton "Clôturer le vote"
+      votingBtn.textContent = '🔒 Clôturer le vote';
+      votingBtn.onclick = () => closeVote(ticket.id);
+    }
+  } else {
+    // Pas de vote - bouton "Activer le vote"
+    votingBtn.textContent = '🗳️ Activer le vote';
+    votingBtn.className = 'btn btn-primary voting-btn';
+    votingBtn.onclick = () => toggleVoting(ticket.id, true);
+  }
+  
+  // Insérer le bouton avant le bouton de fermeture
+  const closeBtn = modalActions.querySelector('.close-btn');
+  if (closeBtn) {
+    modalActions.insertBefore(votingBtn, closeBtn);
+  } else {
+    modalActions.appendChild(votingBtn);
+  }
+}
+
+// Activer/désactiver le vote
+async function toggleVoting(ticketId, enable) {
+  try {
+    console.log(`🗳️ ${enable ? 'Activation' : 'Désactivation'} du vote pour le ticket ${ticketId}`);
+    
+    const response = await fetch('/api/toggle-voting', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        ticket_id: ticketId,
+        enable: enable
+      })
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Erreur lors de la modification du vote');
+    }
+    
+    const data = await response.json();
+    
+    showSuccess(data.message || (enable ? 'Vote activé !' : 'Vote désactivé !'));
+    
+    // Recharger les détails du ticket
+    await openTicketDetail(ticketId);
+    
+  } catch (error) {
+    console.error('Erreur toggleVoting:', error);
+    showError(error.message || 'Impossible de modifier le vote');
+  }
+}
+
+// Clôturer le vote
+async function closeVote(ticketId) {
+  if (!confirm('Voulez-vous vraiment clôturer ce vote ? Cette action est irréversible.')) {
+    return;
+  }
+  
+  try {
+    console.log(`🔒 Clôture du vote pour le ticket ${ticketId}`);
+    
+    const response = await fetch('/api/close-vote', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        ticket_id: ticketId
+      })
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Erreur lors de la clôture du vote');
+    }
+    
+    const data = await response.json();
+    
+    showSuccess(data.message || 'Vote clôturé avec succès !');
+    
+    // Recharger les détails du ticket
+    await openTicketDetail(ticketId);
+    
+  } catch (error) {
+    console.error('Erreur closeVote:', error);
+    showError(error.message || 'Impossible de clôturer le vote');
+  }
+}
 
 // Ajouter la section de vote dans le modal
 function addVotingSection(ticket) {
