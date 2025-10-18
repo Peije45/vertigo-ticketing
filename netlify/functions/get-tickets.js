@@ -119,6 +119,10 @@ exports.handler = async (event, context) => {
         u.discord_username as assigned_to_username,
         u.discord_avatar_url as assigned_to_avatar,
         u.discord_global_name as assigned_to_display_name,
+        -- Données de vote
+        (SELECT COUNT(*) FROM ticket_votes WHERE ticket_id = t.id AND vote = 'pour') as votes_pour,
+        (SELECT COUNT(*) FROM ticket_votes WHERE ticket_id = t.id AND vote = 'contre') as votes_contre,
+        (SELECT COUNT(*) FROM ticket_votes WHERE ticket_id = t.id) as total_votes,
         -- Calculer le statut de lecture par utilisateur
         COALESCE(trs.last_read_at, '1970-01-01'::timestamp) as user_last_read_at,
         -- Compter les messages non lus par utilisateur (messages postés après last_read_at)
@@ -171,6 +175,31 @@ exports.handler = async (event, context) => {
     
     // Exécuter la requête avec les paramètres
     const tickets = await sql(query, whereParams);
+    
+    // ✅ Pour chaque ticket avec vote activé, récupérer la liste des votants
+    for (const ticket of tickets) {
+      if (ticket.voting_enabled) {
+        const voters = await sql`
+          SELECT 
+            tv.vote,
+            u.id as user_id,
+            u.discord_username,
+            u.discord_global_name,
+            u.discord_avatar_url
+          FROM ticket_votes tv
+          JOIN users u ON u.id = tv.user_id
+          WHERE tv.ticket_id = ${ticket.id}
+          ORDER BY tv.created_at ASC
+        `;
+        
+        // Séparer les votants pour/contre
+        ticket.voters_pour = voters.filter(v => v.vote === 'pour');
+        ticket.voters_contre = voters.filter(v => v.vote === 'contre');
+      } else {
+        ticket.voters_pour = [];
+        ticket.voters_contre = [];
+      }
+    }
     
     // ✅ Récupérer les statistiques GLOBALES (sans filtre utilisateur)
     const stats = await sql`
