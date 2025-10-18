@@ -193,7 +193,7 @@ function createUserRow(user) {
   // Échapper le JSON pour éviter les problèmes avec les guillemets
   const userDataEscaped = escapeHtml(JSON.stringify(user));
   
-  return `
+ return `
     <tr>
       <td>
         <div class="user-info">
@@ -211,20 +211,18 @@ function createUserRow(user) {
         </div>
       </td>
       <td>${accessBadge}</td>
-      <td>
-        ${voteManageBadge}
-        <br>
-        <button class="btn btn-sm" style="margin-top: 0.5rem;" 
-                onclick="toggleVoteManagement('${user.id}', ${!user.can_manage_votes})">
-          ${user.can_manage_votes ? '🚫 Retirer' : '✅ Autoriser'}
-        </button>
-      </td>
+      <td>${voteManageBadge}</td>
       <td>${statusBadge}</td>
       <td style="font-size: 0.85rem; color: var(--text-secondary);">${lastLogin}</td>
       <td>
         <div class="actions-cell">
           <button class="btn btn-sm" onclick='editUser(${userDataEscaped})'>
             ✏️ Modifier
+          </button>
+        </div>
+      </td>
+    </tr>
+  `;
           </button>
         </div>
       </td>
