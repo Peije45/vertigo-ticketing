@@ -871,9 +871,20 @@ body {
   height: 32px;
   background: #1e1f22;
   border-radius: 6px;
-  overflow: hidden;
   position: relative;
   cursor: help;
+}
+
+.progress-bar {
+  height: 100%;
+  transition: width 0.3s ease;
+  display: flex;
+  align-items: center;
+  padding: 0 0.75rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  border-radius: 6px;
+  overflow: hidden;
 }
 
 .progress-bar {
