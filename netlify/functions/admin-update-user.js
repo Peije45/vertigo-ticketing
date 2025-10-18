@@ -31,6 +31,7 @@ exports.handler = async (event, context) => {
     const { 
       user_id, 
       can_access_dashboard,
+      can_manage_votes,
       is_active,
       role_ids
     } = body;
@@ -107,6 +108,12 @@ exports.handler = async (event, context) => {
     if (typeof can_access_dashboard === 'boolean') {
       updates.push(`can_access_dashboard = $${paramIndex}`);
       params.push(can_access_dashboard);
+      paramIndex++;
+    }
+    
+    if (typeof can_manage_votes === 'boolean') {
+      updates.push(`can_manage_votes = $${paramIndex}`);
+      params.push(can_manage_votes);
       paramIndex++;
     }
     
