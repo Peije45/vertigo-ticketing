@@ -56,6 +56,7 @@ exports.handler = async (event, context) => {
         u.discord_avatar_url,
         u.discord_email,
         u.can_access_dashboard,
+        u.can_manage_votes,
         u.is_super_admin,
         u.is_active,
         u.last_login,
