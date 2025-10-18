@@ -193,7 +193,7 @@ function createUserRow(user) {
   // Échapper le JSON pour éviter les problèmes avec les guillemets
   const userDataEscaped = escapeHtml(JSON.stringify(user));
   
- return `
+  return `
     <tr>
       <td>
         <div class="user-info">
@@ -218,11 +218,6 @@ function createUserRow(user) {
         <div class="actions-cell">
           <button class="btn btn-sm" onclick='editUser(${userDataEscaped})'>
             ✏️ Modifier
-          </button>
-        </div>
-      </td>
-    </tr>
-  `;
           </button>
         </div>
       </td>
