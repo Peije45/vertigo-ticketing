@@ -744,3 +744,220 @@ body {
 ::-webkit-scrollbar-thumb:hover {
     background: var(--discord-hover);
 }
+
+/* ====================================
+   VOTE SECTION (MODAL)
+   ==================================== */
+
+.vote-section {
+  background: #2b2d31;
+  padding: 1.5rem;
+  border-radius: 8px;
+  border: 2px solid #5865f2;
+  margin-bottom: 1.5rem;
+}
+
+.vote-section.closed {
+  border-color: #949ba4;
+  opacity: 0.9;
+}
+
+.vote-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.vote-title {
+  font-size: 1rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.vote-status {
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.vote-status.active {
+  background: #3ba55d;
+  color: white;
+}
+
+.vote-status.closed {
+  background: #ed4245;
+  color: white;
+}
+
+/* Boutons de vote */
+.vote-buttons {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.vote-btn {
+  flex: 1;
+  padding: 0.75rem;
+  border: 2px solid transparent;
+  background: #1e1f22;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 600;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  color: var(--text-primary);
+}
+
+.vote-btn:hover:not(:disabled) {
+  background: #40444b;
+}
+
+.vote-btn.voted-for {
+  background: #3ba55d;
+  border-color: #2d8049;
+  color: white;
+}
+
+.vote-btn.voted-against {
+  background: #ed4245;
+  border-color: #c03537;
+  color: white;
+}
+
+.vote-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Résultats du vote */
+.vote-results {
+  margin-top: 1.5rem;
+}
+
+.result-row {
+  margin-bottom: 1rem;
+}
+
+.result-label {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.4rem;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.progress-bar-container {
+  height: 32px;
+  background: #1e1f22;
+  border-radius: 6px;
+  overflow: hidden;
+  position: relative;
+  cursor: help;
+}
+
+.progress-bar {
+  height: 100%;
+  transition: width 0.3s ease;
+  display: flex;
+  align-items: center;
+  padding: 0 0.75rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.progress-bar.for {
+  background: linear-gradient(90deg, #3ba55d, #2d8049);
+  color: white;
+}
+
+.progress-bar.against {
+  background: linear-gradient(90deg, #ed4245, #c03537);
+  color: white;
+}
+
+/* Tooltip des votants */
+.vote-tooltip {
+  position: absolute;
+  bottom: calc(100% + 0.5rem);
+  left: 0;
+  background: #111214;
+  border: 1px solid #40444b;
+  border-radius: 6px;
+  padding: 0.75rem;
+  min-width: 220px;
+  max-width: 300px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+  z-index: 1000;
+}
+
+.progress-bar-container:hover .vote-tooltip {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.tooltip-title {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.voter-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+  font-size: 0.85rem;
+}
+
+.voter-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.voter-name {
+  color: var(--text-primary);
+}
+
+/* Résumé */
+.summary {
+  background: #40444b;
+  padding: 1rem;
+  border-radius: 6px;
+  margin-top: 1rem;
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.summary.winning-for {
+  background: rgba(59, 165, 93, 0.2);
+  border: 1px solid #3ba55d;
+  color: #3ba55d;
+}
+
+.summary.winning-against {
+  background: rgba(237, 66, 69, 0.2);
+  border: 1px solid #ed4245;
+  color: #ed4245;
+}
+
+.summary.tied {
+  background: rgba(148, 155, 164, 0.2);
+  border: 1px solid #949ba4;
+  color: #949ba4;
+}
