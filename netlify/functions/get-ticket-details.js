@@ -70,6 +70,73 @@ exports.handler = async (event, context) => {
     
     const ticket = tickets[0];
     
+    const ticket = tickets[0];
+    
+    // Récupérer les données de vote si le vote est activé
+    let voteData = {
+      voting_enabled: ticket.voting_enabled || false,
+      voting_closed: ticket.voting_closed || false,
+      voting_closed_at: ticket.voting_closed_at || null,
+      votes_pour: 0,
+      votes_contre: 0,
+      total_votes: 0,
+      voters_pour: [],
+      voters_contre: [],
+      user_vote: null
+    };
+    
+    if (ticket.voting_enabled) {
+      // Récupérer les statistiques de vote
+      const voteStats = await sql`
+        SELECT 
+          COUNT(*) FILTER (WHERE vote = 'pour') as votes_pour,
+          COUNT(*) FILTER (WHERE vote = 'contre') as votes_contre,
+          COUNT(*) as total_votes
+        FROM ticket_votes
+        WHERE ticket_id = ${ticketId}
+      `;
+      
+      if (voteStats.length > 0) {
+        voteData.votes_pour = parseInt(voteStats[0].votes_pour);
+        voteData.votes_contre = parseInt(voteStats[0].votes_contre);
+        voteData.total_votes = parseInt(voteStats[0].total_votes);
+      }
+      
+      // Récupérer la liste complète des votants avec leurs infos
+      const voters = await sql`
+        SELECT 
+          tv.vote,
+          tv.created_at as voted_at,
+          u.id as user_id,
+          u.discord_username,
+          u.discord_global_name,
+          u.discord_avatar_url
+        FROM ticket_votes tv
+        JOIN users u ON u.id = tv.user_id
+        WHERE tv.ticket_id = ${ticketId}
+        ORDER BY tv.created_at ASC
+      `;
+      
+      // Séparer les votants pour/contre
+      voteData.voters_pour = voters.filter(v => v.vote === 'pour');
+      voteData.voters_contre = voters.filter(v => v.vote === 'contre');
+      
+      // Récupérer le vote de l'utilisateur connecté
+      const userVotes = await sql`
+        SELECT vote
+        FROM ticket_votes
+        WHERE ticket_id = ${ticketId}
+          AND user_id = ${userId}
+      `;
+      
+      if (userVotes.length > 0) {
+        voteData.user_vote = userVotes[0].vote;
+      }
+    }
+    
+    // Ajouter les données de vote au ticket
+    ticket.vote_data = voteData;
+    
     // Récupérer les messages du ticket
     const messages = await sql`
       SELECT *
