@@ -117,6 +117,12 @@
   to = "/.netlify/functions/toggle-voting"
   status = 200
 
+# ✅ NOUVELLE ROUTE : Voter pour ou contre un ticket
+[[redirects]]
+  from = "/api/cast-vote"
+  to = "/.netlify/functions/cast-vote"
+  status = 200
+
 # Redirection SPA - doit être en dernier
 [[redirects]]
   from = "/*"
