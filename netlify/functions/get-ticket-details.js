@@ -69,8 +69,7 @@ exports.handler = async (event, context) => {
     }
     
     const ticket = tickets[0];
-    
-    const ticket = tickets[0];
+    const userId = sessions[0].user_id;
     
     // Récupérer les données de vote si le vote est activé
     let voteData = {
@@ -145,8 +144,6 @@ exports.handler = async (event, context) => {
         AND deleted_at IS NULL
       ORDER BY created_at ASC
     `;
-    
-    const userId = sessions[0].user_id;
     
     // Récupérer le dernier message pour enregistrer le last_read_message_id
     const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
