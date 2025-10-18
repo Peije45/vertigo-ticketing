@@ -73,7 +73,7 @@ exports.handler = async (event, context) => {
     
     // Requête SQL pour récupérer les tickets archivés
     const query = `
-      SELECT 
+     SELECT 
         t.*,
         c.name as category_name,
         c.emoji as category_emoji,
@@ -81,6 +81,10 @@ exports.handler = async (event, context) => {
         u.discord_username as assigned_to_username,
         u.discord_avatar_url as assigned_to_avatar,
         u.discord_global_name as assigned_to_display_name,
+        -- Données de vote
+        (SELECT COUNT(*) FROM ticket_votes WHERE ticket_id = t.id AND vote = 'pour') as votes_pour,
+        (SELECT COUNT(*) FROM ticket_votes WHERE ticket_id = t.id AND vote = 'contre') as votes_contre,
+        (SELECT COUNT(*) FROM ticket_votes WHERE ticket_id = t.id) as total_votes,
         false as is_unread,
         0 as unread_count
       FROM tickets t
