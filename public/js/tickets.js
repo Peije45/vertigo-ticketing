@@ -293,7 +293,7 @@ function createTicketCard(ticket) {
           </div>
           
           <div class="tooltip-footer">
-            Participation: ${(ticket.votes_pour || 0) + (ticket.votes_contre || 0)} vote(s)
+            Participation: ${parseInt(ticket.votes_pour || 0) + parseInt(ticket.votes_contre || 0)} vote(s)
           </div>
         </div>
       </span>
